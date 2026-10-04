@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.paper,
   },
   compact: { minHeight: 34, paddingHorizontal: 10 },
-  selected: { backgroundColor: colors.cobalt },
+  selected: { backgroundColor: colors.primary },
   text: { fontFamily: fonts.bodySemiBold, fontSize: 15, color: colors.ink },
   compactText: { fontSize: 13 },
 });

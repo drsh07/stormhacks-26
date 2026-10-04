@@ -1,11 +1,16 @@
 import { Redirect, useFocusEffect, useRouter } from 'expo-router';
+import { CalendarX, Plus } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppHeader } from '@/components/AppHeader';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
+import { EmptyState } from '@/components/EmptyState';
+import { Enter } from '@/components/Enter';
+import { ErrorText } from '@/components/Field';
+import { SkeletonList } from '@/components/Skeleton';
 import { EventCard } from '@/components/EventCard';
 import { NavBar } from '@/components/NavBar';
 import { api } from '@/lib/api';
@@ -51,32 +56,33 @@ export default function Events() {
         <View style={styles.titleBlock}>
           <Text style={type.title}>Events in your free time</Text>
           <Text style={[type.body, styles.fog]}>Only things you could actually go to, closest to your interests first.</Text>
-          <Button label="Post an event" variant="quest" onPress={() => router.push('/post-event')} />
+          <Button label="Post an event" icon={Plus} spinIconOnHover onPress={() => router.push('/post-event')} />
         </View>
 
-        {(sessionLoading || state.status === 'loading') && (
-          <View style={styles.centered}>
-            <ActivityIndicator color={colors.cobalt} />
-            <Text style={[type.small, styles.fog]}>Finding events…</Text>
-          </View>
-        )}
+        {(sessionLoading || state.status === 'loading') && <SkeletonList label="Finding events" />}
 
         {state.status === 'error' && (
           <Card>
-            <Text style={[type.bodyStrong, { color: colors.coral }]}>{state.message}</Text>
+            <ErrorText>{state.message}</ErrorText>
             <Button label="Try again" onPress={load} />
           </Card>
         )}
 
         {state.status === 'ready' && state.events.length === 0 && (
-          <Card>
-            <Text style={type.heading}>Nothing fits your free time yet</Text>
-            <Text style={type.body}>No upcoming events land in your free blocks. Post one and be the reason people show up.</Text>
-            <Button label="Post an event" onPress={() => router.push('/post-event')} />
-          </Card>
+          <EmptyState
+            icon={CalendarX}
+            title="Nothing fits your free time yet"
+            message="No upcoming events land in your free blocks. Post one and be the reason people show up."
+            action={{ label: 'Post an event', onPress: () => router.push('/post-event') }}
+          />
         )}
 
-        {state.status === 'ready' && state.events.map((event) => <EventCard key={event.id} event={event} />)}
+        {state.status === 'ready' &&
+          state.events.map((event, index) => (
+            <Enter key={event.id} index={index}>
+              <EventCard event={event} />
+            </Enter>
+          ))}
       </ScrollView>
       <NavBar current="events" />
     </SafeAreaView>
@@ -95,6 +101,5 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   titleBlock: { gap: spacing.sm },
-  centered: { alignItems: 'center', gap: spacing.md, paddingVertical: spacing.xxl },
   fog: { color: colors.fog },
 });

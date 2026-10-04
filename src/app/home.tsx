@@ -1,15 +1,20 @@
 import { Redirect, useFocusEffect, useRouter } from 'expo-router';
+import { CalendarPlus, Clock, Pencil } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppHeader } from '@/components/AppHeader';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
+import { EmptyState } from '@/components/EmptyState';
+import { Enter } from '@/components/Enter';
+import { ErrorText } from '@/components/Field';
+import { SkeletonList } from '@/components/Skeleton';
 import { NavBar } from '@/components/NavBar';
 import { api } from '@/lib/api';
 import { useSession } from '@/lib/session';
-import { borderWidth, colors, fonts, radius, spacing, type } from '@/lib/theme';
+import { borderWidth, colors, fonts, iconStroke, radius, spacing, type } from '@/lib/theme';
 import { formatDuration, todayInVancouver, toMinutes } from '@/lib/time';
 import { DAYS, type ClassSlot, type Day, type FreeBlock, type Schedule } from '@/lib/types';
 
@@ -68,19 +73,14 @@ export default function Home() {
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
         <View style={styles.titleRow}>
           <Text style={[type.title, styles.flex]}>{user ? `${user.name.split(' ')[0]}'s week` : 'Your week'}</Text>
-          <Button label="Edit schedule" variant="secondary" size="sm" onPress={() => router.push('/onboarding?step=schedule')} />
+          <Button label="Edit schedule" icon={Pencil} variant="secondary" size="sm" onPress={() => router.push('/onboarding?step=schedule')} />
         </View>
 
-        {(sessionLoading || state.status === 'loading') && (
-          <View style={styles.centered}>
-            <ActivityIndicator color={colors.cobalt} />
-            <Text style={[type.small, styles.fog]}>Loading your week…</Text>
-          </View>
-        )}
+        {(sessionLoading || state.status === 'loading') && <SkeletonList label="Loading your week" />}
 
         {state.status === 'error' && (
           <Card>
-            <Text style={[type.bodyStrong, { color: colors.coral }]}>{state.message}</Text>
+            <ErrorText>{state.message}</ErrorText>
             <Button label="Try again" onPress={load} />
           </Card>
         )}
@@ -94,13 +94,12 @@ export default function Home() {
         )}
 
         {schedule && !hasClasses && (
-          <Card>
-            <Text style={type.heading}>No classes yet</Text>
-            <Text style={type.body}>
-              Add your classes so we can find your gaps. Until then, we count you as free all day.
-            </Text>
-            <Button label="Add my classes" onPress={() => router.push('/onboarding?step=schedule')} />
-          </Card>
+          <EmptyState
+            icon={CalendarPlus}
+            title="No classes yet"
+            message="Add your classes so we can find your gaps. Until then, we count you as free all day."
+            action={{ label: 'Add my classes', onPress: () => router.push('/onboarding?step=schedule') }}
+          />
         )}
 
         {schedule && (
@@ -119,7 +118,7 @@ export default function Home() {
                     style={[styles.day, selected && styles.daySelected]}>
                     <Text style={[styles.dayText, selected && { color: colors.white }]}>{d}</Text>
                     {/* A dot marks days with an on-campus gap. */}
-                    <View style={[styles.dot, hasGap && { backgroundColor: selected ? colors.white : colors.cobalt }]} />
+                    <View style={[styles.dot, hasGap && { backgroundColor: selected ? colors.white : colors.primary }]} />
                   </Pressable>
                 );
               })}
@@ -127,11 +126,15 @@ export default function Home() {
 
             <Text style={[type.small, styles.fog]}>Tap a free block to see who else is free then.</Text>
             <View style={styles.timeline}>
-              {itemsFor(day, schedule).map((item) =>
+              {itemsFor(day, schedule).map((item, index) =>
                 item.type === 'class' ? (
-                  <ClassItem key={`c-${item.slot.course_code}-${item.slot.start_time}`} slot={item.slot} />
+                  <Enter key={`${day}-c-${item.slot.course_code}-${item.slot.start_time}`} index={index}>
+                    <ClassItem slot={item.slot} />
+                  </Enter>
                 ) : (
-                  <FreeItem key={`f-${item.block.start_time}`} block={item.block} />
+                  <Enter key={`${day}-f-${item.block.start_time}`} index={index}>
+                    <FreeItem block={item.block} />
+                  </Enter>
                 ),
               )}
             </View>
@@ -146,9 +149,12 @@ export default function Home() {
 function ClassItem({ slot }: { slot: ClassSlot }) {
   return (
     <View style={[styles.item, styles.classItem]}>
-      <Text style={styles.time}>
-        {slot.start_time} to {slot.end_time}
-      </Text>
+      <View style={styles.timeRow}>
+        <Clock size={14} color={colors.fog} strokeWidth={iconStroke} />
+        <Text style={styles.time}>
+          {slot.start_time} to {slot.end_time}
+        </Text>
+      </View>
       <Text style={type.heading}>{slot.course_code}</Text>
       <Text style={[type.small, styles.fog]}>Class, {slot.campus}</Text>
     </View>
@@ -165,9 +171,12 @@ function FreeItem({ block }: { block: FreeBlock }) {
       accessibilityHint="Shows people who are free in this block"
       onPress={() => router.push(`/people?day=${block.day}&start=${block.start_time}&end=${block.end_time}`)}
       style={({ pressed }) => [styles.item, gap ? styles.gapItem : styles.freeItem, pressed && styles.pressed]}>
-      <Text style={[styles.time, gap && { color: colors.white }]}>
-        {block.start_time} to {block.end_time}
-      </Text>
+      <View style={styles.timeRow}>
+        <Clock size={14} color={gap ? colors.white : colors.fog} strokeWidth={iconStroke} />
+        <Text style={[styles.time, gap && { color: colors.white }]}>
+          {block.start_time} to {block.end_time}
+        </Text>
+      </View>
       <Text style={[type.heading, gap && { color: colors.white }]}>{gap ? `Gap on campus, ${length}` : `Free, ${length}`}</Text>
       <Text style={[type.small, gap ? { color: colors.white } : styles.fog]}>
         {gap ? `Stuck at ${block.campus} between classes. See who else is.` : 'No class. See who else is free.'}
@@ -189,7 +198,6 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  centered: { alignItems: 'center', gap: spacing.md, paddingVertical: spacing.xxl },
   fog: { color: colors.fog },
   days: { flexDirection: 'row', gap: 6 },
   day: {
@@ -203,14 +211,15 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     backgroundColor: colors.paper,
   },
-  daySelected: { backgroundColor: colors.cobalt },
+  daySelected: { backgroundColor: colors.primary },
   dayText: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.ink },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'transparent' },
   timeline: { gap: spacing.md },
   item: { borderWidth, borderColor: colors.ink, borderRadius: radius.lg, padding: spacing.lg, gap: 2 },
   classItem: { backgroundColor: colors.paper },
-  gapItem: { backgroundColor: colors.cobalt },
+  gapItem: { backgroundColor: colors.primary },
   freeItem: { backgroundColor: 'transparent', borderStyle: 'dashed', borderColor: colors.fog },
   time: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.fog },
   pressed: { opacity: 0.7 },
+  timeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
 });

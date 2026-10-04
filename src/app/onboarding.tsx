@@ -1,4 +1,5 @@
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
+import { ArrowLeft, CircleCheck, GraduationCap, Mail, UserRound } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -18,7 +19,7 @@ import { AppHeader } from '@/components/AppHeader';
 import { Button } from '@/components/Button';
 import { Chips, Pop } from '@/components/Chips';
 import { ClassEditor, rowError, toClasses, toRows, type ClassRow } from '@/components/ClassEditor';
-import { Field } from '@/components/Field';
+import { ErrorText, Field } from '@/components/Field';
 import { ProgressBar } from '@/components/ProgressBar';
 import { SearchSelect } from '@/components/SearchSelect';
 import { AI_TIMEOUT_MS, api, ApiError } from '@/lib/api';
@@ -26,7 +27,7 @@ import { pickImage } from '@/lib/image';
 import { useReduceMotion } from '@/lib/motion';
 import { PROGRAMS } from '@/lib/programs';
 import { useSession } from '@/lib/session';
-import { borderWidth, colors, radius, spacing, type } from '@/lib/theme';
+import { borderWidth, colors, iconStroke, radius, spacing, type } from '@/lib/theme';
 import { CAMPUSES, type Campus, type ClassSlot, type Schedule, type User } from '@/lib/types';
 
 type Step = 1 | 2 | 3;
@@ -139,7 +140,7 @@ export default function Onboarding() {
       <SafeAreaView style={styles.screen} edges={['top', 'left', 'right']}>
         <AppHeader hideSignIn />
         <View style={styles.centered}>
-          <ActivityIndicator color={colors.cobalt} />
+          <ActivityIndicator color={colors.primary} />
         </View>
       </SafeAreaView>
     );
@@ -291,6 +292,8 @@ export default function Onboarding() {
               <>
                 <Field
                   label="Name"
+                  icon={UserRound}
+                  valid={nameOk}
                   value={basics.name}
                   onChangeText={(name) => setBasics({ ...basics, name })}
                   onBlur={() => setTouched((t) => ({ ...t, name: true }))}
@@ -301,6 +304,8 @@ export default function Onboarding() {
                 />
                 <Field
                   label="SFU email"
+                  icon={Mail}
+                  valid={emailOk && !exists}
                   value={basics.email}
                   onChangeText={(email) => {
                     setBasics({ ...basics, email });
@@ -331,6 +336,7 @@ export default function Onboarding() {
                 <Chips label="Campus" options={CAMPUSES} value={basics.campus} onChange={(campus) => setBasics({ ...basics, campus })} />
                 <SearchSelect
                   label="Program"
+                  icon={GraduationCap}
                   value={basics.program}
                   onChange={(program) => setBasics({ ...basics, program })}
                   onBlur={() => setTouched((t) => ({ ...t, program: true }))}
@@ -373,7 +379,7 @@ export default function Onboarding() {
                 </Text>
                 <Button
                   label={rows.length > 0 ? 'Upload a different screenshot' : 'Upload a schedule screenshot'}
-                  variant="quest"
+                  variant="secondary"
                   onPress={pickScreenshot}
                   loading={reading}
                   disabled={saving}
@@ -381,11 +387,18 @@ export default function Onboarding() {
                 {reading && <Text style={[type.small, styles.fog]}>Reading your schedule. This takes a few seconds.</Text>}
                 {notice && (
                   <View style={[styles.notice, { borderColor: notice.tone === 'good' ? colors.moss : colors.coral }]}>
-                    <Text style={[type.small, { color: notice.tone === 'good' ? colors.moss : colors.coral }]}>{notice.text}</Text>
+                    {notice.tone === 'good' ? (
+                      <View style={styles.good}>
+                        <CircleCheck size={16} color={colors.moss} strokeWidth={iconStroke} />
+                        <Text style={[type.small, styles.goodText]}>{notice.text}</Text>
+                      </View>
+                    ) : (
+                      <ErrorText>{notice.text}</ErrorText>
+                    )}
                   </View>
                 )}
                 {scheduleLoading ? (
-                  <ActivityIndicator color={colors.cobalt} style={styles.left} />
+                  <ActivityIndicator color={colors.primary} style={styles.left} />
                 ) : (
                   <>
                     {rows.length === 0 && (
@@ -432,9 +445,13 @@ export default function Onboarding() {
 
         {/* Sticky footer: the main button is always on screen. */}
         <View style={styles.footer}>
-          {error ? <Text style={[type.small, styles.footerError]}>{error}</Text> : null}
+          {error ? (
+            <View style={styles.footerError}>
+              <ErrorText>{error}</ErrorText>
+            </View>
+          ) : null}
           <View style={styles.footerRow}>
-            {back && <Button label="Back" variant="secondary" onPress={back} disabled={saving} />}
+            {back && <Button label="Back" icon={ArrowLeft} variant="secondary" onPress={back} disabled={saving} />}
             <Button label={primary.label} onPress={primary.onPress} loading={saving} disabled={primary.disabled} style={styles.primary} />
           </View>
         </View>
@@ -472,7 +489,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     backgroundColor: colors.paper,
   },
-  emojiSelected: { backgroundColor: colors.cobalt },
+  emojiSelected: { backgroundColor: colors.primary },
   emojiText: { fontSize: 24 },
   notice: {
     borderWidth,
@@ -501,6 +518,8 @@ const styles = StyleSheet.create({
     borderTopColor: colors.ink,
   },
   footerRow: { flexDirection: 'row', gap: spacing.md, width: '100%', maxWidth: 560 - spacing.xl * 2, alignSelf: 'center' },
-  footerError: { color: colors.coral, width: '100%', maxWidth: 560 - spacing.xl * 2, alignSelf: 'center' },
+  footerError: { width: '100%', maxWidth: 560 - spacing.xl * 2, alignSelf: 'center' },
+  good: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
+  goodText: { flex: 1, color: colors.moss },
   primary: { flex: 1, alignSelf: 'stretch' },
 });

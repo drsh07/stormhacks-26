@@ -1,7 +1,11 @@
+import type { LucideIcon } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { borderWidth, colors, fonts, radius, spacing, type } from '@/lib/theme';
+import { borderWidth, colors, fonts, iconStroke, radius, spacing, type } from '@/lib/theme';
+
+import { AnimatedCheck } from './AnimatedCheck';
+import { ErrorText } from './Field';
 
 interface Props {
   label: string;
@@ -12,6 +16,8 @@ interface Props {
   placeholder?: string;
   error?: string | null;
   onBlur?: () => void;
+  /** Leading icon inside the field. */
+  icon?: LucideIcon;
 }
 
 const MAX_SHOWN = 6;
@@ -21,7 +27,7 @@ const MAX_SHOWN = 6;
  * the field (not as an overlay), so it scrolls with the form and never gets
  * clipped. Only values from `options` count as chosen.
  */
-export function SearchSelect({ label, value, onChange, options, placeholder, error, onBlur }: Props) {
+export function SearchSelect({ label, value, onChange, options, placeholder, error, onBlur, icon: Icon }: Props) {
   const [text, setText] = useState(value);
   const [open, setOpen] = useState(false);
 
@@ -45,22 +51,26 @@ export function SearchSelect({ label, value, onChange, options, placeholder, err
   return (
     <View style={styles.wrap}>
       <Text style={type.small}>{label}</Text>
-      <TextInput
-        accessibilityLabel={label}
-        accessibilityHint="Type to search, then pick from the list"
-        value={text}
-        onChangeText={type_}
-        onFocus={() => setOpen(true)}
-        onBlur={() => {
-          // Wait a moment so a tap on an option registers before the list closes.
-          setTimeout(() => setOpen(false), 150);
-          onBlur?.();
-        }}
-        placeholder={placeholder}
-        placeholderTextColor={colors.fog}
-        autoCorrect={false}
-        style={[styles.input, error ? { borderColor: colors.coral } : null]}
-      />
+      <View style={[styles.box, error ? { borderColor: colors.coral } : null]}>
+        {Icon && <Icon size={18} color={colors.fog} strokeWidth={iconStroke} />}
+        <TextInput
+          accessibilityLabel={label}
+          accessibilityHint="Type to search, then pick from the list"
+          value={text}
+          onChangeText={type_}
+          onFocus={() => setOpen(true)}
+          onBlur={() => {
+            // Wait a moment so a tap on an option registers before the list closes.
+            setTimeout(() => setOpen(false), 150);
+            onBlur?.();
+          }}
+          placeholder={placeholder}
+          placeholderTextColor={colors.fog}
+          autoCorrect={false}
+          style={styles.input}
+        />
+        {!!value && !error && <AnimatedCheck />}
+      </View>
       {open && (
         <View style={styles.list} accessibilityRole="list">
           {matches.length === 0 ? (
@@ -78,21 +88,28 @@ export function SearchSelect({ label, value, onChange, options, placeholder, err
           )}
         </View>
       )}
-      {error ? <Text style={[type.small, { color: colors.coral }]}>{error}</Text> : null}
+      {error ? <ErrorText>{error}</ErrorText> : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   wrap: { gap: spacing.xs },
-  input: {
+  box: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
     minHeight: 46,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
     borderWidth,
     borderColor: colors.ink,
     borderRadius: radius.md,
     backgroundColor: colors.paper,
+  },
+  input: {
+    flex: 1,
+    minWidth: 0,
+    paddingVertical: spacing.sm,
     fontFamily: fonts.body,
     fontSize: 16,
     color: colors.ink,

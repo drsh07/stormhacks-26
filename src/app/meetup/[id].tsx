@@ -1,17 +1,22 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
+import { ArrowLeft, Clock, MapPin } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, ActivityIndicator, Animated, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Animated, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppHeader } from '@/components/AppHeader';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
+import { Confetti } from '@/components/Confetti';
+import { ErrorText } from '@/components/Field';
+import { SkeletonList } from '@/components/Skeleton';
 import { QuestCard } from '@/components/QuestCard';
 import { AI_TIMEOUT_MS, api, ApiError } from '@/lib/api';
 import { pickImage } from '@/lib/image';
+import { useReduceMotion } from '@/lib/motion';
 import { useSession } from '@/lib/session';
-import { borderWidth, colors, fonts, radius, spacing, type } from '@/lib/theme';
+import { borderWidth, colors, fonts, iconStroke, radius, spacing, type } from '@/lib/theme';
 import { formatDate, formatDuration } from '@/lib/time';
 import type { MeetupDetail } from '@/lib/types';
 import { usePolling } from '@/lib/usePolling';
@@ -46,6 +51,14 @@ export default function MeetupScreen() {
 
   const status = detail?.meetup.status;
   const quest = detail?.quest ?? null;
+
+  // The match moment: confetti when an invite turns into "accepted" while this screen is open.
+  const [celebrate, setCelebrate] = useState(0);
+  const lastStatus = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (lastStatus.current === 'proposed' && status === 'accepted') setCelebrate((n) => n + 1);
+    lastStatus.current = status;
+  }, [status]);
   const questId = quest?.id;
 
   const load = useCallback(async () => {
@@ -152,19 +165,15 @@ export default function MeetupScreen() {
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'left', 'right', 'bottom']}>
       <AppHeader />
+      {celebrate > 0 && <Confetti key={celebrate} />}
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-        <Button label="All meetups" variant="secondary" size="sm" onPress={() => router.replace('/meetups')} />
+        <Button label="All meetups" icon={ArrowLeft} variant="secondary" size="sm" onPress={() => router.replace('/meetups')} />
 
-        {!detail && !loadError && (
-          <View style={styles.centered}>
-            <ActivityIndicator color={colors.cobalt} />
-            <Text style={[type.small, styles.fog]}>Loading the meetup…</Text>
-          </View>
-        )}
+        {!detail && !loadError && <SkeletonList count={2} label="Loading the meetup" />}
 
         {!detail && loadError && (
           <Card>
-            <Text style={[type.bodyStrong, { color: colors.coral }]}>{loadError}</Text>
+            <ErrorText>{loadError}</ErrorText>
             <Button label="Try again" onPress={load} />
           </Card>
         )}
@@ -175,10 +184,18 @@ export default function MeetupScreen() {
               <Text style={styles.bigEmoji}>{detail.other.avatar_emoji}</Text>
               <View style={styles.flex}>
                 <Text style={type.title}>{detail.other.name}</Text>
-                <Text style={[type.body, styles.fog]}>
-                  {detail.meetup.day} {detail.meetup.start_time} to {detail.meetup.end_time} ({formatDuration(detail.meetup.minutes)})
-                </Text>
-                {!event && <Text style={[type.body, styles.fog]}>{detail.meetup.spot}</Text>}
+                <View style={styles.metaRow}>
+                  <Clock size={16} color={colors.fog} strokeWidth={iconStroke} />
+                  <Text style={[type.body, styles.fog, styles.flex]}>
+                    {detail.meetup.day} {detail.meetup.start_time} to {detail.meetup.end_time} ({formatDuration(detail.meetup.minutes)})
+                  </Text>
+                </View>
+                {!event && (
+                  <View style={styles.metaRow}>
+                    <MapPin size={16} color={colors.fog} strokeWidth={iconStroke} />
+                    <Text style={[type.body, styles.fog, styles.flex]}>{detail.meetup.spot}</Text>
+                  </View>
+                )}
               </View>
             </View>
 
@@ -231,7 +248,7 @@ export default function MeetupScreen() {
               <Card>
                 <Text style={type.heading}>Waiting for {first}</Text>
                 <Text style={type.body}>Your invite is sent. This screen updates by itself when {first} answers.</Text>
-                <ActivityIndicator color={colors.cobalt} style={styles.left} />
+                <ActivityIndicator color={colors.primary} style={styles.left} />
               </Card>
             )}
 
@@ -267,7 +284,13 @@ export default function MeetupScreen() {
 
             {status === 'accepted' && !event && quest && (
               <>
-                <QuestCard quest={quest} revealed={revealed} onReveal={reveal} />
+                <QuestCard
+                  quest={quest}
+                  revealed={revealed}
+                  onReveal={reveal}
+                  spot={detail.meetup.spot}
+                  kind={detail.quest_required ? 'First meetup' : 'Bonus quest'}
+                />
                 {revealed && (
                   <Card>
                     <Text style={type.heading}>Done it? Prove it.</Text>
@@ -309,7 +332,7 @@ export default function MeetupScreen() {
             {/* 4. Completed */}
             {status === 'completed' && <Celebration detail={detail} onDone={() => router.replace('/meetups')} />}
 
-            {actionError ? <Text style={[type.bodyStrong, { color: colors.coral }]}>{actionError}</Text> : null}
+            {actionError ? <ErrorText>{actionError}</ErrorText> : null}
           </>
         )}
       </ScrollView>
@@ -320,24 +343,17 @@ export default function MeetupScreen() {
 /** The payoff screen: a stamp that lands, the verdict, and the quest you finished. */
 function Celebration({ detail, onDone }: { detail: MeetupDetail; onDone: () => void }) {
   const scale = useRef(new Animated.Value(0.4)).current;
+  const reduce = useReduceMotion();
   const first = detail.other.name.split(' ')[0];
 
   useEffect(() => {
-    let cancelled = false;
-    AccessibilityInfo.isReduceMotionEnabled()
-      .catch(() => false)
-      .then((reduce) => {
-        if (cancelled) return;
-        if (reduce) scale.setValue(1);
-        else Animated.spring(scale, { toValue: 1, friction: 4, tension: 120, useNativeDriver: true }).start();
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [scale]);
+    if (reduce) scale.setValue(1);
+    else Animated.spring(scale, { toValue: 1, friction: 4, tension: 120, useNativeDriver: true }).start();
+  }, [reduce, scale]);
 
   return (
     <>
+      <Confetti />
       <Animated.View style={[styles.stamp, { transform: [{ scale }, { rotate: '-4deg' }] }]}>
         <Text style={styles.stampText}>Quest complete</Text>
       </Animated.View>
@@ -368,9 +384,9 @@ const styles = StyleSheet.create({
     maxWidth: 560,
     alignSelf: 'center',
   },
-  centered: { alignItems: 'center', gap: spacing.md, paddingVertical: spacing.xxl },
   fog: { color: colors.fog },
   who: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
+  metaRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, paddingTop: 2 },
   bigEmoji: { fontSize: 48 },
   buttons: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   facts: { gap: 2 },

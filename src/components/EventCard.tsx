@@ -1,14 +1,16 @@
 import { useRouter } from 'expo-router';
+import { Clock, MapPin } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { api } from '@/lib/api';
-import { borderWidth, colors, radius, spacing, type } from '@/lib/theme';
+import { borderWidth, colors, iconStroke, radius, spacing, type } from '@/lib/theme';
 import { formatDate } from '@/lib/time';
 import type { EventFeedItem } from '@/lib/types';
 
 import { Button } from './Button';
 import { Card } from './Card';
+import { ErrorText } from './Field';
 
 /** One event from the feed, with the people you match who are also free then. */
 export function EventCard({ event }: { event: EventFeedItem }) {
@@ -36,15 +38,19 @@ export function EventCard({ event }: { event: EventFeedItem }) {
   return (
     <Card>
       <View style={styles.when}>
+        <Clock size={16} color={colors.white} strokeWidth={iconStroke} />
         <Text style={[type.bodyStrong, { color: colors.white }]}>
           {event.day}, {formatDate(event.date)}, {event.start_time} to {event.end_time}
         </Text>
       </View>
       <Text style={type.heading}>{event.title}</Text>
-      <Text style={[type.small, styles.fog]}>
-        {event.location}
-        {event.campus ? `, ${event.campus}` : ''}
-      </Text>
+      <View style={styles.meta}>
+        <MapPin size={16} color={colors.fog} strokeWidth={iconStroke} />
+        <Text style={[type.small, styles.fog, styles.flex]}>
+          {event.location}
+          {event.campus ? `, ${event.campus}` : ''}
+        </Text>
+      </View>
       <Text style={type.body}>{event.description}</Text>
       <Text style={[type.small, styles.fog]}>
         {event.is_mine ? 'You are hosting this' : `Hosted by ${event.host.avatar_emoji} ${event.host.name}`}
@@ -70,7 +76,7 @@ export function EventCard({ event }: { event: EventFeedItem }) {
             </View>
           ))
         )}
-        {error ? <Text style={[type.small, { color: colors.coral }]}>{error}</Text> : null}
+        {error ? <ErrorText>{error}</ErrorText> : null}
       </View>
     </Card>
   );
@@ -80,12 +86,16 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   fog: { color: colors.fog },
   when: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     alignSelf: 'flex-start',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: radius.sm,
-    backgroundColor: colors.cobalt,
+    backgroundColor: colors.primary,
   },
+  meta: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
   people: {
     gap: spacing.sm,
     paddingTop: spacing.md,

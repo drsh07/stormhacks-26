@@ -1,11 +1,16 @@
 import { Redirect, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { SearchX, Users } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppHeader } from '@/components/AppHeader';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
+import { EmptyState } from '@/components/EmptyState';
+import { Enter } from '@/components/Enter';
+import { ErrorText } from '@/components/Field';
+import { SkeletonList } from '@/components/Skeleton';
 import { EventCard } from '@/components/EventCard';
 import { MatchCard } from '@/components/MatchCard';
 import { NavBar } from '@/components/NavBar';
@@ -29,6 +34,7 @@ export default function People() {
   const { user, loading: sessionLoading } = useSession();
   const [state, setState] = useState<State>({ status: 'loading' });
   const [blockEvents, setBlockEvents] = useState<EventFeedItem[]>([]);
+  const [skipped, setSkipped] = useState<string[]>([]); // swiped left, hidden until the screen reloads
   const userId = user?.id;
   const filtered = !!(day && start && end);
 
@@ -61,6 +67,7 @@ export default function People() {
   );
 
   if (!sessionLoading && !user) return <Redirect href="/" />;
+  const visible = state.status === 'ready' ? state.matches.filter((m) => !skipped.includes(m.user.id)) : [];
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'left', 'right']}>
@@ -76,49 +83,56 @@ export default function People() {
           {filtered && <Button label="See all my matches" variant="secondary" size="sm" onPress={() => router.replace('/people')} />}
         </View>
 
-        {(sessionLoading || state.status === 'loading') && (
-          <View style={styles.centered}>
-            <ActivityIndicator color={colors.cobalt} />
-            <Text style={[type.small, styles.fog]}>Finding people…</Text>
-          </View>
-        )}
+        {(sessionLoading || state.status === 'loading') && <SkeletonList label="Finding people" />}
 
         {state.status === 'error' && (
           <Card>
-            <Text style={[type.bodyStrong, { color: colors.coral }]}>{state.message}</Text>
+            <ErrorText>{state.message}</ErrorText>
             <Button label="Try again" onPress={load} />
           </Card>
         )}
 
         {state.status === 'ready' && state.matches.length === 0 && (
-          <Card>
-            <Text style={type.heading}>{filtered ? 'Nobody else is free in this block' : 'No matches yet'}</Text>
-            <Text style={type.body}>
-              {filtered
+          <EmptyState
+            icon={filtered ? SearchX : Users}
+            title={filtered ? 'Nobody else is free in this block' : 'No matches yet'}
+            message={
+              filtered
                 ? 'Try another block, or look at everyone you overlap with this week.'
-                : 'Matches come from your free time. Check that your classes and campus are right.'}
-            </Text>
-            {filtered ? (
-              <Button label="See all my matches" onPress={() => router.replace('/people')} />
-            ) : (
-              <Button label="Edit schedule" onPress={() => router.push('/onboarding?step=schedule')} />
-            )}
-          </Card>
+                : 'Matches come from your free time. Check that your classes and campus are right.'
+            }
+            action={
+              filtered
+                ? { label: 'See all my matches', onPress: () => router.replace('/people') }
+                : { label: 'Edit schedule', onPress: () => router.push('/onboarding?step=schedule') }
+            }
+          />
         )}
 
-        {state.status === 'ready' && state.matches.map((match) => (
-            <MatchCard
-              key={match.user.id}
-              match={match}
-              onPropose={() =>
-                router.push(
-                  filtered
-                    ? `/propose?userId=${match.user.id}&day=${day}&start=${start}&end=${end}`
-                    : `/propose?userId=${match.user.id}`,
-                )
-              }
-            />
-          ))}
+        {state.status === 'ready' && visible.length > 0 && (
+          <Text style={[type.small, styles.fog]}>Swipe a card right to propose, left to skip.</Text>
+        )}
+        {state.status === 'ready' && state.matches.length > 0 && visible.length === 0 && (
+          <EmptyState
+            icon={Users}
+            title="You skipped everyone"
+            message="That was the whole list. Bring them back and take another look."
+            action={{ label: 'Show them again', onPress: () => setSkipped([]) }}
+          />
+        )}
+        {visible.map((match, index) => {
+          const propose = () =>
+            router.push(
+              filtered
+                ? `/propose?userId=${match.user.id}&day=${day}&start=${start}&end=${end}`
+                : `/propose?userId=${match.user.id}`,
+            );
+          return (
+            <Enter key={match.user.id} index={index}>
+              <MatchCard match={match} onPropose={propose} onSkip={() => setSkipped((ids) => [...ids, match.user.id])} />
+            </Enter>
+          );
+        })}
 
         {state.status === 'ready' && filtered && blockEvents.length > 0 && (
           <>
@@ -146,6 +160,5 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   titleBlock: { gap: spacing.sm },
-  centered: { alignItems: 'center', gap: spacing.md, paddingVertical: spacing.xxl },
   fog: { color: colors.fog },
 });

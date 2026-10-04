@@ -1,13 +1,14 @@
+import { Plus, Trash2 } from 'lucide-react-native';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { TIME_PATTERN, toMinutes } from '@/lib/time';
-import { colors, spacing, type } from '@/lib/theme';
+import { spacing, type } from '@/lib/theme';
 import { CAMPUSES, DAYS, type Campus, type ClassSlot, type Day } from '@/lib/types';
 
 import { Button } from './Button';
 import { Card } from './Card';
 import { Chips, MultiChips } from './Chips';
-import { Field } from './Field';
+import { ErrorText, Field } from './Field';
 
 /**
  * A class being edited. One row covers every day the class meets at the same
@@ -99,6 +100,7 @@ export function ClassEditor({ rows, onChange, defaultCampus, showErrors }: Props
               <Text style={type.heading}>{row.course_code.trim() || `Class ${index + 1}`}</Text>
               <Button
                 label="Remove"
+                icon={Trash2}
                 variant="secondary"
                 size="sm"
                 onPress={() => onChange(rows.filter((r) => r.key !== row.key))}
@@ -149,11 +151,11 @@ export function ClassEditor({ rows, onChange, defaultCampus, showErrors }: Props
               value={row.campus}
               onChange={(campus) => update(row.key, { campus })}
             />
-            {error ? <Text style={[type.small, { color: colors.coral }]}>{error}</Text> : null}
+            {error ? <ErrorText>{error}</ErrorText> : null}
           </Card>
         );
       })}
-      <Button label="Add class manually" variant="secondary" onPress={() => onChange([...rows, blankRow(defaultCampus)])} />
+      <Button label="Add class manually" icon={Plus} spinIconOnHover variant="secondary" onPress={() => onChange([...rows, blankRow(defaultCampus)])} />
     </View>
   );
 }

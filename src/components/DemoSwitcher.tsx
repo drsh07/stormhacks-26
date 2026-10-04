@@ -69,7 +69,7 @@ export function DemoSwitcher() {
 
           {state.status === 'loading' && (
             <View style={styles.center}>
-              <ActivityIndicator color={colors.cobalt} />
+              <ActivityIndicator color={colors.primary} />
               <Text style={[type.small, styles.fog]}>Loading demo users…</Text>
             </View>
           )}
@@ -105,7 +105,7 @@ export function DemoSwitcher() {
                     onPress={() => pick(item.id)}
                     style={({ pressed }) => [
                       styles.row,
-                      selected && { backgroundColor: colors.quest },
+                      selected && { backgroundColor: colors.muted },
                       pressed && { backgroundColor: colors.muted },
                     ]}>
                     <Text style={styles.emoji}>{item.avatar_emoji}</Text>
@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
     borderWidth,
     borderColor: colors.ink,
     borderRadius: radius.md,
-    backgroundColor: colors.quest,
+    backgroundColor: colors.paper,
   },
   sheet: { flex: 1, backgroundColor: colors.chalk },
   sheetHeader: {

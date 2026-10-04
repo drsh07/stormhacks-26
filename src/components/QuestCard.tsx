@@ -1,23 +1,29 @@
+import { Camera, MapPin, Sparkles, Timer } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Easing, StyleSheet, Text, View } from 'react-native';
 
-import { borderWidth, colors, fonts, radius, shadow, spacing, type } from '@/lib/theme';
+import { borderWidth, colors, fonts, iconStroke, radius, shadow, spacing, type } from '@/lib/theme';
 import type { Quest } from '@/lib/types';
 
 import { Button } from './Button';
+import { Sticker } from './Sticker';
 
 interface Props {
   quest: Quest;
   /** False shows the face-down card with a "Reveal" button. */
   revealed: boolean;
   onReveal: () => void;
+  /** Where the pair is meeting. Shown as a sticker. */
+  spot?: string;
+  /** Shown as a sticker: "First meetup" quests are mandatory, later ones are a bonus. */
+  kind?: 'First meetup' | 'Bonus quest';
 }
 
 /**
  * The quest-log card. Face down at first; revealing it flips the card over.
  * The flip is two halves: turn edge-on, swap the face, turn back.
  */
-export function QuestCard({ quest, revealed, onReveal }: Props) {
+export function QuestCard({ quest, revealed, onReveal, spot, kind }: Props) {
   const turn = useRef(new Animated.Value(0)).current; // 0 = facing us, 1 = edge-on
   const [flipping, setFlipping] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
@@ -43,12 +49,19 @@ export function QuestCard({ quest, revealed, onReveal }: Props) {
     <Animated.View style={[styles.card, shadow.hard, { transform: [{ perspective: 900 }, { rotateY }] }]}>
       {revealed ? (
         <>
-          <Text style={styles.meta}>Side quest, about {quest.time_estimate_min} min</Text>
+          <View style={styles.stickers}>
+            <Sticker icon={Timer} label={`${quest.time_estimate_min} min`} tilt={-4} tone="ink" />
+            {spot ? <Sticker icon={MapPin} label={spot} tilt={2} /> : null}
+            {kind ? <Sticker icon={Sparkles} label={kind} tilt={-2} tone="red" /> : null}
+          </View>
           <Text style={styles.title}>{quest.title}</Text>
           <Text style={type.body}>{quest.body}</Text>
           {quest.why_it_fits ? <Text style={[type.small, styles.why]}>Why you two: {quest.why_it_fits}</Text> : null}
           <View style={styles.proof}>
-            <Text style={type.bodyStrong}>Photo proof</Text>
+            <View style={styles.proofHead}>
+              <Camera size={16} color={colors.ink} strokeWidth={iconStroke} />
+              <Text style={type.bodyStrong}>Photo proof</Text>
+            </View>
             <Text style={type.small}>{quest.photo_proof_instruction}</Text>
           </View>
         </>
@@ -73,7 +86,8 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     gap: spacing.md,
   },
-  meta: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.ink },
+  stickers: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: 2 },
+  proofHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   title: { fontFamily: fonts.display, fontSize: 30, lineHeight: 33, letterSpacing: -0.5, color: colors.ink },
   why: { fontStyle: 'italic' },
   proof: {

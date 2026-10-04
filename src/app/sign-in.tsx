@@ -1,11 +1,13 @@
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
+import { Mail } from 'lucide-react-native';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppHeader } from '@/components/AppHeader';
 import { Button } from '@/components/Button';
-import { Field } from '@/components/Field';
+import { Enter } from '@/components/Enter';
+import { ErrorText, Field } from '@/components/Field';
 import { api, ApiError } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { borderWidth, colors, radius, spacing, type } from '@/lib/theme';
@@ -52,11 +54,15 @@ export default function SignIn() {
       <AppHeader hideSignIn />
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <Text style={type.title}>Sign in</Text>
-          <Text style={[type.body, styles.fog]}>Enter the SFU email you signed up with.</Text>
+          <Enter>
+            <Text style={type.title}>Sign in</Text>
+            <Text style={[type.body, styles.fog]}>Enter the SFU email you signed up with.</Text>
+          </Enter>
 
           <Field
             label="SFU email"
+            icon={Mail}
+            valid={valid && !notFound}
             value={email}
             onChangeText={(next) => {
               setEmail(next);
@@ -79,7 +85,7 @@ export default function SignIn() {
               <Button label="Sign up instead" variant="secondary" size="sm" onPress={() => router.replace('/onboarding')} />
             </View>
           )}
-          {error ? <Text style={[type.small, { color: colors.coral }]}>{error}</Text> : null}
+          {error ? <ErrorText>{error}</ErrorText> : null}
 
           <Button label="Sign in" size="lg" onPress={signIn} loading={busy} disabled={!valid} />
           <Button label="New here? Sign up" variant="secondary" size="sm" onPress={() => router.replace('/onboarding')} />

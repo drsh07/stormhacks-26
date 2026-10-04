@@ -1,18 +1,23 @@
 import { useRouter, type Href } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { CalendarDays, Handshake, Ticket, Users, type LucideIcon } from 'lucide-react-native';
+import { useEffect, useRef } from 'react';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { borderWidth, colors, fonts, spacing } from '@/lib/theme';
+import { useReduceMotion } from '@/lib/motion';
+import { borderWidth, colors, fonts, iconStroke, spacing } from '@/lib/theme';
 
-const TABS: { key: string; label: string; href: Href }[] = [
-  { key: 'home', label: 'Week', href: '/home' },
-  { key: 'people', label: 'People', href: '/people' },
-  { key: 'meetups', label: 'Meetups', href: '/meetups' },
-  { key: 'events', label: 'Events', href: '/events' },
+type TabKey = 'home' | 'people' | 'meetups' | 'events';
+
+const TABS: { key: TabKey; label: string; href: Href; icon: LucideIcon }[] = [
+  { key: 'home', label: 'Week', href: '/home', icon: CalendarDays },
+  { key: 'people', label: 'People', href: '/people', icon: Users },
+  { key: 'meetups', label: 'Meetups', href: '/meetups', icon: Handshake },
+  { key: 'events', label: 'Events', href: '/events', icon: Ticket },
 ];
 
 /** Bottom navigation between the main screens. `current` is the active tab's key. */
-export function NavBar({ current }: { current: 'home' | 'people' | 'meetups' | 'events' }) {
+export function NavBar({ current }: { current: TabKey }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   return (
@@ -29,6 +34,9 @@ export function NavBar({ current }: { current: 'home' | 'people' | 'meetups' | '
             }}
             style={styles.tab}>
             <View style={[styles.pill, selected && styles.pillSelected]}>
+              <Bounce active={selected}>
+                <tab.icon size={20} color={selected ? colors.white : colors.ink} strokeWidth={iconStroke} />
+              </Bounce>
               <Text style={[styles.label, selected && { color: colors.white }]}>{tab.label}</Text>
             </View>
           </Pressable>
@@ -36,6 +44,18 @@ export function NavBar({ current }: { current: 'home' | 'people' | 'meetups' | '
       })}
     </View>
   );
+}
+
+/** A small hop when a tab becomes the selected one. */
+function Bounce({ active, children }: { active: boolean; children: React.ReactNode }) {
+  const y = useRef(new Animated.Value(0)).current;
+  const reduce = useReduceMotion();
+  useEffect(() => {
+    if (!active || reduce) return;
+    y.setValue(-6);
+    Animated.spring(y, { toValue: 0, friction: 4, tension: 200, useNativeDriver: true }).start();
+  }, [active, reduce, y]);
+  return <Animated.View style={{ transform: [{ translateY: y }] }}>{children}</Animated.View>;
 }
 
 const styles = StyleSheet.create({
@@ -49,7 +69,7 @@ const styles = StyleSheet.create({
     borderTopColor: colors.ink,
   },
   tab: { flex: 1, alignItems: 'center' },
-  pill: { minHeight: 40, paddingHorizontal: spacing.md, justifyContent: 'center', borderRadius: 999 },
-  pillSelected: { backgroundColor: colors.cobalt },
-  label: { fontFamily: fonts.displayBold, fontSize: 14, color: colors.ink },
+  pill: { alignItems: 'center', gap: 2, minHeight: 48, paddingHorizontal: spacing.md, paddingVertical: 4, justifyContent: 'center', borderRadius: 14 },
+  pillSelected: { backgroundColor: colors.primary },
+  label: { fontFamily: fonts.displayBold, fontSize: 12, color: colors.ink },
 });

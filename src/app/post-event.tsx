@@ -1,6 +1,7 @@
 import { Redirect, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ArrowLeft } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppHeader } from '@/components/AppHeader';
@@ -70,7 +71,7 @@ export default function PostEvent() {
       <AppHeader />
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <Button label="Back" variant="secondary" size="sm" onPress={() => (router.canGoBack() ? router.back() : router.replace('/events'))} />
+          <Button label="Back" icon={ArrowLeft} variant="secondary" size="sm" onPress={() => (router.canGoBack() ? router.back() : router.replace('/events'))} />
           <Text style={type.title}>Post an event</Text>
           <Text style={[type.body, styles.fog]}>
             It shows up for people who are free then and into this kind of thing. Posts cannot be edited or deleted, so

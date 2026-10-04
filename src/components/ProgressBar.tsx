@@ -50,5 +50,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.paper,
     overflow: 'hidden',
   },
-  fill: { height: '100%', backgroundColor: colors.cobalt },
+  fill: { height: '100%', backgroundColor: colors.primary },
 });

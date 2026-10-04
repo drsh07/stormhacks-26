@@ -1,4 +1,5 @@
 import { useRouter } from 'expo-router';
+import { LogOut } from 'lucide-react-native';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { DEMO_MODE } from '@/lib/api';
@@ -7,6 +8,7 @@ import { borderWidth, colors, fonts, spacing, type } from '@/lib/theme';
 
 import { Button } from './Button';
 import { DemoSwitcher } from './DemoSwitcher';
+import { IconButton } from './IconButton';
 
 interface Props {
   /** Hide the Sign in button (used on the sign-in and sign-up screens themselves). */
@@ -32,7 +34,7 @@ export function AppHeader({ hideSignIn }: Props) {
             </Text>
           )
         )}
-        {user && <Button label="Sign out" variant="secondary" size="sm" onPress={signOut} />}
+        {user && <IconButton icon={LogOut} label="Sign out" onPress={signOut} />}
       </View>
     </View>
   );

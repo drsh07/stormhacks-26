@@ -1,6 +1,7 @@
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ArrowLeft } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppHeader } from '@/components/AppHeader';
@@ -86,11 +87,11 @@ export default function Propose() {
     <SafeAreaView style={styles.screen} edges={['top', 'left', 'right', 'bottom']}>
       <AppHeader />
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-        <Button label="Back" variant="secondary" size="sm" onPress={() => (router.canGoBack() ? router.back() : router.replace('/people'))} />
+        <Button label="Back" icon={ArrowLeft} variant="secondary" size="sm" onPress={() => (router.canGoBack() ? router.back() : router.replace('/people'))} />
 
         {(sessionLoading || state.status === 'loading') && (
           <View style={styles.centered}>
-            <ActivityIndicator color={colors.cobalt} />
+            <ActivityIndicator color={colors.primary} />
           </View>
         )}
 
@@ -189,6 +190,6 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     gap: 2,
   },
-  optionSelected: { backgroundColor: colors.cobalt },
+  optionSelected: { backgroundColor: colors.primary },
   onCobalt: { color: colors.white },
 });

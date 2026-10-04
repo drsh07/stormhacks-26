@@ -1,11 +1,16 @@
 import { Redirect, useRouter } from 'expo-router';
+import { Handshake } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppHeader } from '@/components/AppHeader';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
+import { EmptyState } from '@/components/EmptyState';
+import { Enter } from '@/components/Enter';
+import { ErrorText } from '@/components/Field';
+import { SkeletonList } from '@/components/Skeleton';
 import { NavBar } from '@/components/NavBar';
 import { api } from '@/lib/api';
 import { useSession } from '@/lib/session';
@@ -23,9 +28,9 @@ function statusLine(item: MeetupListItem): { text: string; color: string } {
   const lines: Record<MeetupStatus, { text: string; color: string }> = {
     proposed:
       item.role === 'receiver'
-        ? { text: 'Needs your answer', color: colors.cobalt }
+        ? { text: 'Needs your answer', color: colors.primary }
         : { text: `Waiting for ${first}`, color: colors.fog },
-    accepted: { text: item.is_event ? 'Going together' : item.quest_title ? 'Quest in progress' : 'Accepted', color: colors.cobalt },
+    accepted: { text: item.is_event ? 'Going together' : item.quest_title ? 'Quest in progress' : 'Accepted', color: colors.primary },
     completed: { text: 'Quest complete', color: colors.moss },
     declined: { text: item.role === 'receiver' ? 'You declined' : `${first} declined`, color: colors.coral },
   };
@@ -59,11 +64,11 @@ export default function Meetups() {
   const received = state.status === 'ready' ? state.meetups.filter((m) => m.role === 'receiver') : [];
   const sent = state.status === 'ready' ? state.meetups.filter((m) => m.role === 'requester') : [];
 
-  const renderItem = (item: MeetupListItem) => {
+  const renderItem = (item: MeetupListItem, index: number) => {
     const line = statusLine(item);
     return (
+      <Enter key={item.id} index={index}>
       <Pressable
-        key={item.id}
         accessibilityRole="button"
         onPress={() => router.push(`/meetup/${item.id}`)}
         style={({ pressed }) => [styles.row, pressed && { backgroundColor: colors.muted }]}>
@@ -76,6 +81,7 @@ export default function Meetups() {
           <Text style={[type.small, { color: line.color }]}>{line.text}</Text>
         </View>
       </Pressable>
+      </Enter>
     );
   };
 
@@ -85,25 +91,22 @@ export default function Meetups() {
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
         <Text style={type.title}>Meetups</Text>
 
-        {(sessionLoading || state.status === 'loading') && (
-          <View style={styles.centered}>
-            <ActivityIndicator color={colors.cobalt} />
-          </View>
-        )}
+        {(sessionLoading || state.status === 'loading') && <SkeletonList label="Loading meetups" />}
 
         {state.status === 'error' && (
           <Card>
-            <Text style={[type.bodyStrong, { color: colors.coral }]}>{state.message}</Text>
+            <ErrorText>{state.message}</ErrorText>
             <Button label="Try again" onPress={load} />
           </Card>
         )}
 
         {state.status === 'ready' && state.meetups.length === 0 && (
-          <Card>
-            <Text style={type.heading}>No meetups yet</Text>
-            <Text style={type.body}>Find someone who is free when you are and send the first invite.</Text>
-            <Button label="Find people" onPress={() => router.replace('/people')} />
-          </Card>
+          <EmptyState
+            icon={Handshake}
+            title="No meetups yet"
+            message="Find someone who is free when you are and send the first invite."
+            action={{ label: 'Find people', onPress: () => router.replace('/people') }}
+          />
         )}
 
         {received.length > 0 && (
@@ -136,7 +139,6 @@ const styles = StyleSheet.create({
     maxWidth: 560,
     alignSelf: 'center',
   },
-  centered: { alignItems: 'center', paddingVertical: spacing.xxl },
   fog: { color: colors.fog },
   section: { gap: spacing.sm },
   row: {
