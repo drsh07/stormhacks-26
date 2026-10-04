@@ -45,16 +45,14 @@ export async function POST(request: Request) {
   }
 
   try {
-    const existing = await openMeetupBetween(user.id, receiver_id);
-    if (existing) {
-      // One open meetup per pair keeps the demo tidy. Send them to it.
-      return NextResponse.json({ meetup_id: existing.id, existing: true });
-    }
-
     // "Go with someone": the time and place come from the event.
     if (typeof body.event_id === "string" && body.event_id) {
       const event = await getEvent(body.event_id);
       if (!event) return NextResponse.json({ error: "That event no longer exists." }, { status: 404 });
+      // Already invited this person to THIS event? Reuse that invite. Other events
+      // and plain meetup requests with the same person do not count.
+      const existingInvite = await openMeetupBetween(user.id, receiver_id, event.id);
+      if (existingInvite) return NextResponse.json({ meetup_id: existingInvite.id, existing: true });
       const { window } = eventWindow(event);
       const matches = await getMatches(user, window, 500);
       const overlap = matches.find((m) => m.user.id === receiver_id)?.overlaps[0];
@@ -80,6 +78,10 @@ export async function POST(request: Request) {
     if (!DAYS.includes(day) || !start_time || !end_time || toMinutes(end_time) <= toMinutes(start_time)) {
       return NextResponse.json({ error: "Pick a time block." }, { status: 400 });
     }
+
+    // One open meetup request per pair. Event invites with the same person do not count.
+    const existingRequest = await openMeetupBetween(user.id, receiver_id, null);
+    if (existingRequest) return NextResponse.json({ meetup_id: existingRequest.id, existing: true });
 
     const matches = await getMatches(user, { day, start_time, end_time }, 500);
     const match = matches.find((m) => m.user.id === receiver_id);

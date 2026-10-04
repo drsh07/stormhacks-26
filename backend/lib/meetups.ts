@@ -99,15 +99,23 @@ export async function isFirstMeetup(meetup: MeetupRow): Promise<boolean> {
   return Number(rows[0]?.n ?? 0) === 0;
 }
 
-/** An unfinished meetup between two people, if there is one. */
-export async function openMeetupBetween(a: string, b: string): Promise<MeetupRow | null> {
+/**
+ * An unfinished request of the SAME KIND between two people, if there is one.
+ * Meetup requests (side quest) and event invites are independent:
+ *   eventId = null    -> looks only at plain meetup requests
+ *   eventId = "abc"   -> looks only at invites to that one event
+ * So a pair can have a meetup request and any number of event invites open
+ * at the same time, and none of them is mistaken for another.
+ */
+export async function openMeetupBetween(a: string, b: string, eventId: string | null): Promise<MeetupRow | null> {
   await ensureEventColumn();
   const rows = await query<MeetupRow>(
     `SELECT ${MEETUP_COLUMNS} FROM meetups
       WHERE status IN ('proposed','accepted')
+        AND ${eventId ? "event_id = ?" : "event_id IS NULL"}
         AND ((requester_id = ? AND receiver_id = ?) OR (requester_id = ? AND receiver_id = ?))
       ORDER BY created_at DESC LIMIT 1`,
-    [a, b, b, a],
+    eventId ? [eventId, a, b, b, a] : [a, b, b, a],
   );
   return rows[0] ?? null;
 }
