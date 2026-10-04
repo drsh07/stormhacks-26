@@ -1,0 +1,108 @@
+@import "tailwindcss";
+
+/*
+ * SideQuest design tokens. Change a hex here and the whole app follows.
+ * Palette: cool chalk page, white cards, ink outlines, cobalt for actions,
+ * quest yellow reserved for quests only (the RPG "!" marker).
+ */
+:root {
+  --ink: #16182d;
+  --chalk: #eef1f6;
+  --paper: #ffffff;
+  --cobalt: #2340e0;
+  --quest: #ffce1f;
+  --coral: #e5432f;
+  --moss: #1b8f61;
+  --fog: #5d627a;
+
+  /* shadcn/ui semantic names, mapped onto the palette above */
+  --background: var(--chalk);
+  --foreground: var(--ink);
+  --card: var(--paper);
+  --card-foreground: var(--ink);
+  --popover: var(--paper);
+  --popover-foreground: var(--ink);
+  --primary: var(--cobalt);
+  --primary-foreground: #ffffff;
+  --secondary: var(--paper);
+  --secondary-foreground: var(--ink);
+  --muted: #dfe4ee;
+  --muted-foreground: var(--fog);
+  --accent: var(--quest);
+  --accent-foreground: var(--ink);
+  --destructive: var(--coral);
+  --border: var(--ink);
+  --input: var(--ink);
+  --ring: var(--cobalt);
+  --radius: 0.75rem;
+}
+
+@theme inline {
+  --color-ink: var(--ink);
+  --color-chalk: var(--chalk);
+  --color-paper: var(--paper);
+  --color-cobalt: var(--cobalt);
+  --color-quest: var(--quest);
+  --color-coral: var(--coral);
+  --color-moss: var(--moss);
+  --color-fog: var(--fog);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --font-sans: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-display-face), ui-sans-serif, system-ui, sans-serif;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 6px);
+
+  /* The one signature move: a hard, offset "sticker" shadow. No blur. */
+  --shadow-hard: 4px 4px 0 0 var(--ink);
+  --shadow-hard-sm: 2px 2px 0 0 var(--ink);
+}
+
+@layer base {
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+  }
+  :focus-visible {
+    outline: 3px solid var(--cobalt);
+    outline-offset: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

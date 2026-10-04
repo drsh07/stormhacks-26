@@ -1,4 +1,4 @@
-import { useRouter, type Href } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -10,7 +10,7 @@ import { borderWidth, colors, radius, spacing, type } from '@/lib/theme';
 
 export default function Landing() {
   const router = useRouter();
-  const { user, loading, error } = useSession();
+  const { user, loading, error, signOut } = useSession();
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'left', 'right']}>
@@ -29,12 +29,15 @@ export default function Landing() {
             <Button
               size="lg"
               label={user ? 'Open my week' : 'Get started'}
-              onPress={() => router.push((user ? '/home' : '/onboarding') as Href)}
+              onPress={() => router.push(user ? '/home' : '/onboarding')}
             />
             {user && (
-              <Text style={[type.small, styles.fog]}>
-                Signed in as {user.name}, {user.campus}
-              </Text>
+              <View style={styles.signedIn}>
+                <Text style={[type.small, styles.fog]}>
+                  Signed in as {user.name}, {user.campus}
+                </Text>
+                <Button label="Sign out" variant="secondary" size="sm" onPress={signOut} />
+              </View>
             )}
             {error && <Text style={[type.small, { color: colors.coral }]}>{error}</Text>}
           </View>
@@ -71,6 +74,7 @@ const styles = StyleSheet.create({
   spinner: { marginTop: spacing.xl, alignSelf: 'flex-start' },
   actions: { marginTop: spacing.xl, gap: spacing.md },
   fog: { color: colors.fog },
+  signedIn: { gap: spacing.sm },
   sample: { marginTop: spacing.xxl, transform: [{ rotate: '-1.5deg' }] },
   proof: {
     borderWidth,

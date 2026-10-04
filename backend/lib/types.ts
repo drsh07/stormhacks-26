@@ -1,9 +1,12 @@
-// Mirrors lib/types.ts in the backend. Keep the two in sync.
-export const CAMPUSES = ['Burnaby', 'Surrey', 'Vancouver'] as const;
+export const CAMPUSES = ["Burnaby", "Surrey", "Vancouver"] as const;
 export type Campus = (typeof CAMPUSES)[number];
 
-export const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
+export const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 export type Day = (typeof DAYS)[number];
+
+export type FreeBlockKind = "on_campus_gap" | "off_campus_free";
+export type MeetupStatus = "proposed" | "accepted" | "completed" | "declined";
+export type QuestStatus = "pending" | "verified";
 
 export interface User {
   id: string;
@@ -15,15 +18,6 @@ export interface User {
   interests: string;
   avatar_emoji: string;
 }
-
-export interface DemoUser {
-  id: string;
-  name: string;
-  campus: Campus;
-  avatar_emoji: string;
-}
-
-export type FreeBlockKind = 'on_campus_gap' | 'off_campus_free';
 
 /** Times are 24h "HH:MM", America/Vancouver. */
 export interface ClassSlot {
@@ -40,9 +34,4 @@ export interface FreeBlock {
   end_time: string;
   kind: FreeBlockKind;
   campus: Campus | null;
-}
-
-export interface Schedule {
-  classes: ClassSlot[];
-  free_blocks: FreeBlock[];
 }

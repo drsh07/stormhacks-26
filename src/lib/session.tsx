@@ -19,6 +19,8 @@ interface Session {
   /** Become this user. Throws ApiError if the server does not know them. */
   signInAs: (userId: string) => Promise<void>;
   signOut: () => Promise<void>;
+  /** Replace the cached user after the server returns an updated profile. */
+  updateUser: (user: User) => void;
 }
 
 const SessionContext = createContext<Session | null>(null);
@@ -74,7 +76,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
-  const value = useMemo(() => ({ user, loading, error, signInAs, signOut }), [user, loading, error, signInAs, signOut]);
+  /** Sign in with a user object we already have (right after sign-up). */
+  const updateUser = useCallback((next: User) => {
+    AsyncStorage.setItem(STORAGE_KEY, next.id).catch(() => {});
+    setApiUserId(next.id);
+    setUser(next);
+    setError(null);
+  }, []);
+
+  const value = useMemo(
+    () => ({ user, loading, error, signInAs, signOut, updateUser }),
+    [user, loading, error, signInAs, signOut, updateUser],
+  );
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
 

@@ -33,7 +33,14 @@
           "imageWidth": 76
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "SideQuest reads a screenshot of your class schedule and photos you choose as quest proof.",
+          "cameraPermission": "SideQuest uses the camera for quest photo proof."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
