@@ -1,6 +1,15 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const nextConfig: NextConfig = {
+  // Option 1: Top-level turbopack config (Next.js 15+)
+  turbopack: {
+    root: __dirname,
+  },
+
+  // Option 2: Tells Next.js tracing where the workspace root is
+  outputFileTracingRoot: path.join(__dirname, "../"),
+
   // Lets the Expo app call the API when it runs in a browser (`npx expo start --web`).
   // Native iOS/Android builds do not need CORS, but it does no harm.
   async headers() {
