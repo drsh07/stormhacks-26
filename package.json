@@ -1,9 +1,12 @@
 {
-  "name": "stormhacks-26",
+  "name": "sidequest-mobile",
   "main": "expo-router/entry",
   "version": "1.0.0",
   "dependencies": {
+    "@expo-google-fonts/bricolage-grotesque": "^0.4.1",
+    "@expo-google-fonts/instrument-sans": "^0.4.2",
     "@expo/ui": "~57.0.21",
+    "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "~57.0.26",
     "expo-constants": "~57.0.20",
     "expo-device": "~57.0.2",
@@ -33,11 +36,11 @@
   },
   "scripts": {
     "start": "expo start",
-    "reset-project": "node ./scripts/reset-project.js",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "typecheck": "tsc --noEmit"
   },
   "private": true
 }
