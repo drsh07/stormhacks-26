@@ -7,10 +7,11 @@ import { borderWidth, colors, fonts, spacing } from '@/lib/theme';
 const TABS: { key: string; label: string; href: Href }[] = [
   { key: 'home', label: 'My week', href: '/home' },
   { key: 'people', label: 'People', href: '/people' },
+  { key: 'meetups', label: 'Meetups', href: '/meetups' },
 ];
 
 /** Bottom navigation between the main screens. `current` is the active tab's key. */
-export function NavBar({ current }: { current: 'home' | 'people' }) {
+export function NavBar({ current }: { current: 'home' | 'people' | 'meetups' }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   return (
@@ -47,7 +48,7 @@ const styles = StyleSheet.create({
     borderTopColor: colors.ink,
   },
   tab: { flex: 1, alignItems: 'center' },
-  pill: { minHeight: 40, paddingHorizontal: spacing.lg, justifyContent: 'center', borderRadius: 999 },
+  pill: { minHeight: 40, paddingHorizontal: spacing.md, justifyContent: 'center', borderRadius: 999 },
   pillSelected: { backgroundColor: colors.cobalt },
   label: { fontFamily: fonts.displayBold, fontSize: 15, color: colors.ink },
 });

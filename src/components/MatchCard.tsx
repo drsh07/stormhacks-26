@@ -4,12 +4,13 @@ import { borderWidth, colors, radius, spacing, type } from '@/lib/theme';
 import { formatDuration } from '@/lib/time';
 import type { Match } from '@/lib/types';
 
+import { Button } from './Button';
 import { Card } from './Card';
 
 const YEAR_LABEL = ['', '1st year', '2nd year', '3rd year', '4th year'];
 
 /** One person you could meet: who they are, when you are both free, and why you matched. */
-export function MatchCard({ match }: { match: Match }) {
+export function MatchCard({ match, onPropose }: { match: Match; onPropose?: () => void }) {
   const { user, overlap, why } = match;
   const year = YEAR_LABEL[user.year] ?? `${user.year}th year`;
   const about = [user.program, year].filter(Boolean).join(', ');
@@ -36,6 +37,7 @@ export function MatchCard({ match }: { match: Match }) {
       </View>
 
       <Text style={type.small}>{why}</Text>
+      {onPropose && <Button label="Propose meetup" onPress={onPropose} />}
     </Card>
   );
 }

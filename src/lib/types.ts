@@ -66,3 +66,38 @@ export interface Match {
   shared_courses: string[];
   why: string;
 }
+
+export type MeetupStatus = 'proposed' | 'accepted' | 'completed' | 'declined';
+
+export interface Quest {
+  id: string;
+  title: string;
+  body: string;
+  why_it_fits: string;
+  time_estimate_min: number;
+  photo_proof_instruction: string;
+  status: 'pending' | 'verified';
+  verdict_comment: string | null;
+}
+
+export interface MeetupDetail {
+  meetup: { id: string; day: Day; start_time: string; end_time: string; spot: string; status: MeetupStatus; minutes: number };
+  role: 'requester' | 'receiver';
+  other: { id: string; name: string; avatar_emoji: string; program: string };
+  quest: Quest | null;
+  /** True on a pair's first meetup, where the quest is mandatory. */
+  quest_required: boolean;
+  rerolls_left: number;
+}
+
+export interface MeetupListItem {
+  id: string;
+  role: 'requester' | 'receiver';
+  other: { id: string; name: string; avatar_emoji: string };
+  day: Day;
+  start_time: string;
+  end_time: string;
+  spot: string;
+  status: MeetupStatus;
+  quest_title: string | null;
+}

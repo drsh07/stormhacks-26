@@ -96,7 +96,19 @@ export default function People() {
           </Card>
         )}
 
-        {state.status === 'ready' && state.matches.map((match) => <MatchCard key={match.user.id} match={match} />)}
+        {state.status === 'ready' && state.matches.map((match) => (
+            <MatchCard
+              key={match.user.id}
+              match={match}
+              onPropose={() =>
+                router.push(
+                  filtered
+                    ? `/propose?userId=${match.user.id}&day=${day}&start=${start}&end=${end}`
+                    : `/propose?userId=${match.user.id}`,
+                )
+              }
+            />
+          ))}
       </ScrollView>
       <NavBar current="people" />
     </SafeAreaView>

@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
-import { api, ApiError, setApiUserId } from './api';
+import { api, ApiError, setApiUserId, setUnauthorizedHandler } from './api';
 import type { User } from './types';
 
 /**
@@ -75,6 +75,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setApiUserId(null);
     setUser(null);
   }, []);
+
+  // If any request says "not signed in" for the current user, the account is
+  // gone on the server. Sign out so the app returns to the start screen.
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      signOut();
+    });
+    return () => setUnauthorizedHandler(null);
+  }, [signOut]);
 
   /** Sign in with a user object we already have (right after sign-up). */
   const updateUser = useCallback((next: User) => {

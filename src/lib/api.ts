@@ -22,6 +22,13 @@ export function setApiUserId(id: string | null) {
   currentUserId = id;
 }
 
+// Called when the server no longer recognises the signed-in user (for example
+// after the database was re-seeded), so the app can sign out cleanly.
+let onUnauthorized: (() => void) | null = null;
+export function setUnauthorizedHandler(handler: (() => void) | null) {
+  onUnauthorized = handler;
+}
+
 interface Options {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   /** Plain object (sent as JSON) or FormData (for photo uploads). */
@@ -65,6 +72,7 @@ export async function api<T>(path: string, options: Options = {}): Promise<T> {
   }
 
   if (!res.ok) {
+    if (res.status === 401 && userId && userId === currentUserId) onUnauthorized?.();
     const message =
       data && typeof data === 'object' && 'error' in data && typeof data.error === 'string'
         ? data.error
