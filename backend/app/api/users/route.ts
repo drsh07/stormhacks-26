@@ -6,8 +6,8 @@ import type { User } from "@/lib/types";
 import { parseProfile } from "@/lib/users";
 
 /**
- * Sign up, or sign back in. Hackathon auth: if the SFU email already exists we
- * return that user instead of an error, so nobody gets locked out of the demo.
+ * Sign up. Creates a new account. If the SFU email is already registered we
+ * refuse with code "exists" so the app can point the person to Sign in.
  */
 export async function POST(request: Request) {
   let body: unknown;
@@ -21,22 +21,20 @@ export async function POST(request: Request) {
   const p = parsed.value;
 
   try {
-    const existing = await query<User>(`SELECT ${USER_COLUMNS} FROM users WHERE email = ? LIMIT 1`, [p.email!]);
-    let user = existing[0];
-    let created = false;
-
-    if (!user) {
-      const id = randomUUID();
-      await execute(
-        `INSERT INTO users (id, name, email, campus, program, year, interests, avatar_emoji)
-         VALUES (?, ?, ?, ?, ?, ?, '', ?)`,
-        [id, p.name!, p.email!, p.campus!, p.program ?? "", p.year ?? 1, p.avatar_emoji ?? "🙂"],
-      );
-      user = (await query<User>(`SELECT ${USER_COLUMNS} FROM users WHERE id = ? LIMIT 1`, [id]))[0];
-      created = true;
+    const existing = await query<{ id: string }>("SELECT id FROM users WHERE email = ? LIMIT 1", [p.email!]);
+    if (existing.length > 0) {
+      return NextResponse.json({ error: "You already have an account.", code: "exists" }, { status: 409 });
     }
 
-    const res = NextResponse.json({ user, created });
+    const id = randomUUID();
+    await execute(
+      `INSERT INTO users (id, name, email, campus, program, year, interests, avatar_emoji)
+       VALUES (?, ?, ?, ?, ?, ?, '', ?)`,
+      [id, p.name!, p.email!, p.campus!, p.program ?? "", p.year ?? 1, p.avatar_emoji ?? "🙂"],
+    );
+    const user = (await query<User>(`SELECT ${USER_COLUMNS} FROM users WHERE id = ? LIMIT 1`, [id]))[0];
+
+    const res = NextResponse.json({ user });
     res.cookies.set(USER_COOKIE, user.id, COOKIE_OPTIONS); // web only; the app uses x-user-id
     return res;
   } catch (err) {

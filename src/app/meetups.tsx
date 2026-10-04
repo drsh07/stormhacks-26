@@ -25,7 +25,7 @@ function statusLine(item: MeetupListItem): { text: string; color: string } {
       item.role === 'receiver'
         ? { text: 'Needs your answer', color: colors.cobalt }
         : { text: `Waiting for ${first}`, color: colors.fog },
-    accepted: { text: item.quest_title ? 'Quest in progress' : 'Accepted', color: colors.cobalt },
+    accepted: { text: item.is_event ? 'Going together' : item.quest_title ? 'Quest in progress' : 'Accepted', color: colors.cobalt },
     completed: { text: 'Quest complete', color: colors.moss },
     declined: { text: item.role === 'receiver' ? 'You declined' : `${first} declined`, color: colors.coral },
   };

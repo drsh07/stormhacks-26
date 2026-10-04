@@ -6,6 +6,8 @@ import { toMinutes } from "./time";
 import type { Campus, Day, MeetupStatus, QuestStatus } from "./types";
 
 export interface MeetupRow {
+  /** Set when the meetup is "go to this event together". Event meetups have no quest. */
+  event_id?: string | null;
   id: string;
   requester_id: string;
   receiver_id: string;
@@ -40,10 +42,31 @@ interface Person {
 const REROLLED = "__rerolled__";
 export const MAX_REROLLS = 1;
 
-const MEETUP_COLUMNS = "id, requester_id, receiver_id, day, start_time, end_time, spot, status";
+const MEETUP_COLUMNS = "id, requester_id, receiver_id, day, start_time, end_time, spot, status, event_id";
+
+/**
+ * The event_id column was added after the first deploy. This adds it to an
+ * existing database the first time it is needed, so nobody has to run a
+ * migration by hand. A "column already exists" error just means it is done.
+ */
+let eventColumnReady: Promise<void> | null = null;
+export function ensureEventColumn(): Promise<void> {
+  if (!eventColumnReady) {
+    eventColumnReady = execute("ALTER TABLE meetups ADD COLUMN event_id CHAR(36) NULL")
+      .then(() => undefined)
+      .catch((err: Error) => {
+        if (!/duplicate column/i.test(err.message)) {
+          eventColumnReady = null; // a real failure: try again on the next request
+          throw err;
+        }
+      });
+  }
+  return eventColumnReady;
+}
 const QUEST_COLUMNS = "id, meetup_id, title, body, why_it_fits, time_estimate_min, photo_proof_instruction, status, verdict_comment";
 
 export async function getMeetup(id: string): Promise<MeetupRow | null> {
+  await ensureEventColumn();
   const rows = await query<MeetupRow>(`SELECT ${MEETUP_COLUMNS} FROM meetups WHERE id = ? LIMIT 1`, [id]);
   return rows[0] ?? null;
 }
@@ -78,6 +101,7 @@ export async function isFirstMeetup(meetup: MeetupRow): Promise<boolean> {
 
 /** An unfinished meetup between two people, if there is one. */
 export async function openMeetupBetween(a: string, b: string): Promise<MeetupRow | null> {
+  await ensureEventColumn();
   const rows = await query<MeetupRow>(
     `SELECT ${MEETUP_COLUMNS} FROM meetups
       WHERE status IN ('proposed','accepted')
@@ -89,11 +113,12 @@ export async function openMeetupBetween(a: string, b: string): Promise<MeetupRow
 }
 
 export async function createMeetup(input: Omit<MeetupRow, "id" | "status">): Promise<string> {
+  await ensureEventColumn();
   const id = randomUUID();
   await execute(
-    `INSERT INTO meetups (id, requester_id, receiver_id, day, start_time, end_time, spot, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'proposed')`,
-    [id, input.requester_id, input.receiver_id, input.day, input.start_time, input.end_time, input.spot],
+    `INSERT INTO meetups (id, requester_id, receiver_id, day, start_time, end_time, spot, status, event_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'proposed', ?)`,
+    [id, input.requester_id, input.receiver_id, input.day, input.start_time, input.end_time, input.spot, input.event_id ?? null],
   );
   return id;
 }
@@ -141,8 +166,22 @@ export async function createQuestFor(meetup: MeetupRow, reroll = false): Promise
   return { id, meetup_id: meetup.id, ...quest, status: "pending", verdict_comment: null };
 }
 
+export interface MeetupEvent {
+  id: string;
+  title: string;
+  description: string;
+  location: string;
+  campus: Campus | null;
+  /** "YYYY-MM-DD" */
+  date: string;
+  start_time: string;
+  end_time: string;
+}
+
 export interface MeetupDetail {
-  meetup: Omit<MeetupRow, "requester_id" | "receiver_id"> & { minutes: number };
+  meetup: Omit<MeetupRow, "requester_id" | "receiver_id" | "event_id"> & { minutes: number };
+  /** Present when this meetup is "go to this event together". Then there is no quest. */
+  event: MeetupEvent | null;
   role: "requester" | "receiver";
   other: { id: string; name: string; avatar_emoji: string; program: string };
   quest: Omit<QuestRow, "meetup_id"> | null;
@@ -158,18 +197,42 @@ export async function getMeetupDetail(meetupId: string, userId: string): Promise
   const role = meetup.requester_id === userId ? "requester" : "receiver";
   const otherId = role === "requester" ? meetup.receiver_id : meetup.requester_id;
 
-  const [people, quest, used, first] = await Promise.all([
+  const isEvent = !!meetup.event_id;
+  const [people, quest, used, first, eventRows] = await Promise.all([
     getPeople([otherId]),
-    getCurrentQuest(meetup.id),
+    isEvent ? Promise.resolve(null) : getCurrentQuest(meetup.id), // event meetups never show a quest
     rerollsUsed(meetup.id),
     isFirstMeetup(meetup),
+    isEvent
+      ? query<{ id: string; title: string; description: string; location: string; campus: Campus | null; starts_at: string; ends_at: string }>(
+          "SELECT id, title, description, location, campus, starts_at, ends_at FROM events WHERE id = ? LIMIT 1",
+          [meetup.event_id!],
+        )
+      : Promise.resolve([]),
   ]);
   const other = people.get(otherId);
   if (!other) return null;
 
-  const { requester_id: _a, receiver_id: _b, ...rest } = meetup;
+  const { requester_id: _a, receiver_id: _b, event_id: _e, ...rest } = meetup;
   void _a;
   void _b;
+  void _e;
+  const ev = eventRows[0];
+  const event: MeetupEvent | null = isEvent
+    ? ev
+      ? {
+          id: ev.id,
+          title: ev.title,
+          description: ev.description,
+          location: ev.location,
+          campus: ev.campus,
+          date: ev.starts_at.slice(0, 10),
+          start_time: ev.starts_at.slice(11, 16),
+          end_time: ev.ends_at.slice(0, 10) === ev.starts_at.slice(0, 10) ? ev.ends_at.slice(11, 16) : "23:59",
+        }
+      : // The event row is gone, but this is still an event meetup: keep the quest hidden.
+        { id: meetup.event_id!, title: meetup.spot, description: "", location: meetup.spot, campus: null, date: "", start_time: meetup.start_time, end_time: meetup.end_time }
+    : null;
   let questOut: MeetupDetail["quest"] = null;
   if (quest) {
     const { meetup_id: _m, ...q } = quest;
@@ -178,10 +241,11 @@ export async function getMeetupDetail(meetupId: string, userId: string): Promise
   }
   return {
     meetup: { ...rest, minutes: toMinutes(meetup.end_time) - toMinutes(meetup.start_time) },
+    event,
     role,
     other: { id: other.id, name: other.name, avatar_emoji: other.avatar_emoji, program: other.program },
     quest: questOut,
-    quest_required: first,
+    quest_required: first && !isEvent,
     rerolls_left: quest && quest.status === "pending" ? Math.max(0, MAX_REROLLS - used) : 0,
   };
 }
@@ -196,12 +260,14 @@ export interface MeetupListItem {
   spot: string;
   status: MeetupStatus;
   quest_title: string | null;
+  is_event: boolean;
 }
 
 /** Every meetup this user sent or received, newest first. */
 export async function listMeetups(userId: string): Promise<MeetupListItem[]> {
+  await ensureEventColumn();
   const rows = await query<MeetupRow & { other_name: string; other_emoji: string; quest_title: string | null }>(
-    `SELECT m.id, m.requester_id, m.receiver_id, m.day, m.start_time, m.end_time, m.spot, m.status,
+    `SELECT m.id, m.requester_id, m.receiver_id, m.day, m.start_time, m.end_time, m.spot, m.status, m.event_id,
             u.name AS other_name, u.avatar_emoji AS other_emoji, q.title AS quest_title
        FROM meetups m
        JOIN users u ON u.id = IF(m.requester_id = ?, m.receiver_id, m.requester_id)
@@ -220,6 +286,7 @@ export async function listMeetups(userId: string): Promise<MeetupListItem[]> {
     end_time: r.end_time,
     spot: r.spot,
     status: r.status,
-    quest_title: r.status === "proposed" ? null : r.quest_title,
+    quest_title: r.status === "proposed" || r.event_id ? null : r.quest_title,
+    is_event: !!r.event_id,
   }));
 }

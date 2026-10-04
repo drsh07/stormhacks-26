@@ -10,7 +10,7 @@ import { borderWidth, colors, radius, spacing, type } from '@/lib/theme';
 
 export default function Landing() {
   const router = useRouter();
-  const { user, loading, error, signOut } = useSession();
+  const { user, loading, error } = useSession();
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'left', 'right']}>
@@ -26,17 +26,17 @@ export default function Landing() {
           <ActivityIndicator color={colors.cobalt} style={styles.spinner} />
         ) : (
           <View style={styles.actions}>
-            <Button
-              size="lg"
-              label={user ? 'Open my week' : 'Get started'}
-              onPress={() => router.push(user ? '/home' : '/onboarding')}
-            />
-            {user && (
-              <View style={styles.signedIn}>
+            {user ? (
+              <>
+                <Button size="lg" label="Open my week" onPress={() => router.push('/home')} />
                 <Text style={[type.small, styles.fog]}>
                   Signed in as {user.name}, {user.campus}
                 </Text>
-                <Button label="Sign out" variant="secondary" size="sm" onPress={signOut} />
+              </>
+            ) : (
+              <View style={styles.authButtons}>
+                <Button size="lg" label="Sign up" onPress={() => router.push('/onboarding')} />
+                <Button size="lg" variant="secondary" label="Sign in" onPress={() => router.push('/sign-in')} />
               </View>
             )}
             {error && <Text style={[type.small, { color: colors.coral }]}>{error}</Text>}
@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
   spinner: { marginTop: spacing.xl, alignSelf: 'flex-start' },
   actions: { marginTop: spacing.xl, gap: spacing.md },
   fog: { color: colors.fog },
-  signedIn: { gap: spacing.sm },
+  authButtons: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   sample: { marginTop: spacing.xxl, transform: [{ rotate: '-1.5deg' }] },
   proof: {
     borderWidth,

@@ -68,6 +68,7 @@ export async function POST(request: Request) {
         start_time: overlap.start_time,
         end_time: overlap.end_time,
         spot: `${event.title} at ${event.location}`.slice(0, 160),
+        event_id: event.id,
       });
       return NextResponse.json({ meetup_id, existing: false });
     }

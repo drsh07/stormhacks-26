@@ -1,15 +1,30 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Animated,
+  Easing,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppHeader } from '@/components/AppHeader';
 import { Button } from '@/components/Button';
-import { Chips } from '@/components/Chips';
+import { Chips, Pop } from '@/components/Chips';
 import { ClassEditor, rowError, toClasses, toRows, type ClassRow } from '@/components/ClassEditor';
 import { Field } from '@/components/Field';
-import { AI_TIMEOUT_MS, api } from '@/lib/api';
+import { ProgressBar } from '@/components/ProgressBar';
+import { SearchSelect } from '@/components/SearchSelect';
+import { AI_TIMEOUT_MS, api, ApiError } from '@/lib/api';
 import { pickImage } from '@/lib/image';
+import { useReduceMotion } from '@/lib/motion';
+import { PROGRAMS } from '@/lib/programs';
 import { useSession } from '@/lib/session';
 import { borderWidth, colors, radius, spacing, type } from '@/lib/theme';
 import { CAMPUSES, type Campus, type ClassSlot, type Schedule, type User } from '@/lib/types';
@@ -27,159 +42,16 @@ const INTEREST_IDEAS = [
   'bouldering', 'indie games', 'bubble tea', 'karaoke', 'chess', 'film photography',
   'anime', 'pickup basketball', 'thrifting', 'hackathons', 'techno', 'hiking',
 ];
+const SFU_EMAIL = /^[a-z0-9._-]+@sfu\.ca$/i;
 
-function message(err: unknown, fallback: string): string {
-  return err instanceof Error ? err.message : fallback;
+interface Basics {
+  name: string;
+  email: string;
+  campus: Campus;
+  program: string;
+  year: number;
+  emoji: string;
 }
-
-/**
- * Onboarding: basics -> schedule -> interests.
- * Also used to edit later: /onboarding?step=schedule or ?step=interests
- * opens that one step and returns to the week view when saved.
- */
-export default function Onboarding() {
-  const router = useRouter();
-  const params = useLocalSearchParams<{ step?: string }>();
-  const { user, loading: sessionLoading, updateUser } = useSession();
-
-  const editing = params.step === 'schedule' || params.step === 'interests';
-  const [step, setStep] = useState<Step>(params.step === 'interests' ? 3 : params.step === 'schedule' ? 2 : 1);
-
-  // Someone who already has an account skips the basics.
-  useEffect(() => {
-    if (!sessionLoading && user && step === 1) setStep(2);
-  }, [sessionLoading, user, step]);
-
-  if (sessionLoading) {
-    return (
-      <SafeAreaView style={styles.screen} edges={['top', 'left', 'right']}>
-        <AppHeader />
-        <View style={styles.centered}>
-          <ActivityIndicator color={colors.cobalt} />
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  const done = () => router.replace('/home');
-
-  return (
-    <SafeAreaView style={styles.screen} edges={['top', 'left', 'right']}>
-      <AppHeader />
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          {!editing && <Text style={[type.small, styles.fog]}>Step {step} of 3</Text>}
-          <Text style={type.title}>{STEP_TITLES[step]}</Text>
-
-          {step === 1 && (
-            <BasicsStep
-              onDone={(created) => {
-                updateUser(created);
-                setStep(2);
-              }}
-            />
-          )}
-          {step === 2 && user && (
-            <ScheduleStep key={user.id} user={user} onDone={editing ? done : () => setStep(3)} saveLabel={editing ? 'Save schedule' : 'Save and continue'} />
-          )}
-          {step === 3 && user && (
-            <InterestsStep
-              key={user.id}
-              user={user}
-              onDone={(updated) => {
-                updateUser(updated);
-                done();
-              }}
-            />
-          )}
-          {step !== 1 && !user && (
-            <View style={styles.block}>
-              <Text style={type.body}>Start with the basics so we know whose schedule this is.</Text>
-              <Button label="Go to step 1" onPress={() => setStep(1)} />
-            </View>
-          )}
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
-  );
-}
-
-/* ---------- Step 1: basics ---------- */
-
-function BasicsStep({ onDone }: { onDone: (user: User) => void }) {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [campus, setCampus] = useState<Campus>('Burnaby');
-  const [program, setProgram] = useState('');
-  const [year, setYear] = useState<number>(1);
-  const [emoji, setEmoji] = useState(EMOJI[0]);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const emailOk = /^[a-z0-9._-]+@sfu\.ca$/i.test(email.trim());
-  const emailError = email.trim().length > 0 && !emailOk ? 'Use your SFU email. It must end in @sfu.ca.' : null;
-
-  async function save() {
-    if (name.trim().length < 2) return setError('Enter your name.');
-    if (!emailOk) return setError('Use your SFU email. It must end in @sfu.ca.');
-    setSaving(true);
-    setError(null);
-    try {
-      const { user } = await api<{ user: User }>('/api/users', {
-        method: 'POST',
-        body: { name, email, campus, program, year, avatar_emoji: emoji },
-        userId: null,
-      });
-      onDone(user);
-    } catch (err) {
-      setError(message(err, "Couldn't save your account. Try again."));
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <View style={styles.block}>
-      <Field label="Name" value={name} onChangeText={setName} placeholder="Maya Chen" autoCapitalize="words" maxLength={80} />
-      <Field
-        label="SFU email"
-        value={email}
-        onChangeText={setEmail}
-        placeholder="you@sfu.ca"
-        keyboardType="email-address"
-        autoCapitalize="none"
-        autoCorrect={false}
-        error={emailError}
-        hint="No password. Already signed up? Use the same email to get back in."
-      />
-      <Chips label="Campus" options={CAMPUSES} value={campus} onChange={setCampus} />
-      <Field label="Program" value={program} onChangeText={setProgram} placeholder="Computing Science" maxLength={80} />
-      <Chips label="Year" options={YEARS} value={year} onChange={setYear} format={(y) => (y === 5 ? '5+' : String(y))} />
-
-      <View style={styles.group}>
-        <Text style={type.small}>Pick an emoji for your profile</Text>
-        <View style={styles.emojiGrid} accessibilityRole="radiogroup">
-          {EMOJI.map((e) => (
-            <Pressable
-              key={e}
-              accessibilityRole="radio"
-              accessibilityState={{ selected: e === emoji }}
-              accessibilityLabel={`Emoji ${e}`}
-              onPress={() => setEmoji(e)}
-              style={[styles.emoji, e === emoji && styles.emojiSelected]}>
-              <Text style={styles.emojiText}>{e}</Text>
-            </Pressable>
-          ))}
-        </View>
-      </View>
-
-      {error ? <Text style={[type.bodyStrong, { color: colors.coral }]}>{error}</Text> : null}
-      <Button label="Save and continue" size="lg" onPress={save} loading={saving} />
-    </View>
-  );
-}
-
-/* ---------- Step 2: schedule upload + review ---------- */
 
 interface ExtractResponse {
   ok: boolean;
@@ -187,17 +59,65 @@ interface ExtractResponse {
   message?: string;
 }
 
-function ScheduleStep({ user, onDone, saveLabel }: { user: User; onDone: () => void; saveLabel: string }) {
+function message(err: unknown, fallback: string): string {
+  return err instanceof Error ? err.message : fallback;
+}
+
+/**
+ * Sign up: basics -> schedule -> interests, with Back between steps.
+ * Everything typed is kept in this component, so going back never loses it.
+ *
+ * Also used to edit later: /onboarding?step=schedule or ?step=interests
+ * opens that one step and returns to the week view when saved.
+ */
+export default function Onboarding() {
+  const router = useRouter();
+  const params = useLocalSearchParams<{ step?: string }>();
+  const { user, loading: sessionLoading, updateUser } = useSession();
+  const reduceMotion = useReduceMotion();
+
+  const editing = params.step === 'schedule' || params.step === 'interests';
+  const [step, setStep] = useState<Step>(params.step === 'interests' ? 3 : params.step === 'schedule' ? 2 : 1);
+
+  // The account this sign-up flow created. Anyone else who is signed in (they
+  // arrived signed in, or switched user in demo mode) is sent to their week.
+  const [createdId, setCreatedId] = useState<string | null>(null);
+
+  /* ----- everything the person has entered, kept across steps ----- */
+  const [basics, setBasics] = useState<Basics>({ name: '', email: '', campus: 'Burnaby', program: '', year: 1, emoji: EMOJI[0] });
+  const [touched, setTouched] = useState({ name: false, email: false, program: false });
   const [rows, setRows] = useState<ClassRow[]>([]);
-  const [loadingExisting, setLoadingExisting] = useState(true);
+  const [rowsLoadedFor, setRowsLoadedFor] = useState<string | null>(null);
+  const [interests, setInterests] = useState<string | null>(null); // null = not started; falls back to the saved value
+
+  /* ----- per-step status ----- */
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [exists, setExists] = useState(false);
   const [reading, setReading] = useState(false);
   const [notice, setNotice] = useState<{ tone: 'good' | 'bad'; text: string } | null>(null);
-  const [showErrors, setShowErrors] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
 
-  // If this person already has classes (editing, or signed back in), start from those.
+  /* ----- slide between steps ----- */
+  const slide = useRef(new Animated.Value(1)).current;
+  const direction = useRef(1);
+  function goTo(next: Step) {
+    direction.current = next > step ? 1 : -1;
+    setError(null);
+    setStep(next);
+  }
   useEffect(() => {
+    if (reduceMotion) {
+      slide.setValue(1);
+      return;
+    }
+    slide.setValue(0);
+    Animated.timing(slide, { toValue: 1, duration: 260, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+  }, [step, reduceMotion, slide]);
+
+  /* ----- load the saved schedule once per user, when the schedule step opens ----- */
+  const userId = user?.id;
+  useEffect(() => {
+    if (step !== 2 || !userId || rowsLoadedFor === userId) return;
     let cancelled = false;
     api<Schedule>('/api/schedule')
       .then((s) => {
@@ -207,12 +127,61 @@ function ScheduleStep({ user, onDone, saveLabel }: { user: User; onDone: () => v
         // Not fatal: they can still upload or type their classes.
       })
       .finally(() => {
-        if (!cancelled) setLoadingExisting(false);
+        if (!cancelled) setRowsLoadedFor(userId);
       });
     return () => {
       cancelled = true;
     };
-  }, [user.id]);
+  }, [step, userId, rowsLoadedFor]);
+
+  if (sessionLoading) {
+    return (
+      <SafeAreaView style={styles.screen} edges={['top', 'left', 'right']}>
+        <AppHeader hideSignIn />
+        <View style={styles.centered}>
+          <ActivityIndicator color={colors.cobalt} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+  // Someone who is already signed in has no business in the sign-up flow.
+  if (user && !editing && user.id !== createdId) return <Redirect href="/home" />;
+  // Signed out in the middle of editing (or the account was wiped).
+  if (!user && (editing || step !== 1)) return <Redirect href="/" />;
+
+  const done = () => router.replace('/home');
+
+  /* ---------- Step 1: basics ---------- */
+  const nameOk = basics.name.trim().length >= 2;
+  const emailOk = SFU_EMAIL.test(basics.email.trim());
+  const programOk = (PROGRAMS as readonly string[]).includes(basics.program);
+  const basicsValid = nameOk && emailOk && programOk;
+  const accountMade = !!user; // they came back to step 1 after creating the account
+
+  async function saveBasics() {
+    setTouched({ name: true, email: true, program: true });
+    if (!basicsValid) return;
+    setSaving(true);
+    setError(null);
+    setExists(false);
+    try {
+      const profile = { name: basics.name, campus: basics.campus, program: basics.program, year: basics.year, avatar_emoji: basics.emoji };
+      const res = accountMade
+        ? await api<{ user: User }>('/api/me', { method: 'PATCH', body: profile })
+        : await api<{ user: User }>('/api/users', { method: 'POST', body: { ...profile, email: basics.email.trim() }, userId: null });
+      setCreatedId(res.user.id);
+      updateUser(res.user);
+      goTo(2);
+    } catch (err) {
+      if (err instanceof ApiError && err.code === 'exists') setExists(true);
+      else setError(message(err, "Couldn't save your account. Try again."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  /* ---------- Step 2: schedule ---------- */
+  const rowsValid = rows.every((r) => !rowError(r));
 
   async function pickScreenshot() {
     setNotice(null);
@@ -222,7 +191,6 @@ function ScheduleStep({ user, onDone, saveLabel }: { user: User; onDone: () => v
       setNotice({ tone: 'bad', text: `${picked.message} You can still add classes by hand below.` });
       return;
     }
-
     setReading(true);
     try {
       const result = await api<ExtractResponse>('/api/schedule/extract', {
@@ -231,9 +199,9 @@ function ScheduleStep({ user, onDone, saveLabel }: { user: User; onDone: () => v
         timeoutMs: AI_TIMEOUT_MS,
       });
       if (result.ok && result.classes.length > 0) {
-        setRows(toRows(result.classes));
-        setShowErrors(false);
-        setNotice({ tone: 'good', text: `Found ${result.classes.length} class meetings. Check them and fix anything that's off.` });
+        const found = toRows(result.classes);
+        setRows(found);
+        setNotice({ tone: 'good', text: `Found ${found.length} ${found.length === 1 ? 'class' : 'classes'}. Check them and fix anything that's off.` });
       } else {
         setNotice({ tone: 'bad', text: result.message ?? "Couldn't read that screenshot. Try again, or add classes by hand below." });
       }
@@ -244,143 +212,255 @@ function ScheduleStep({ user, onDone, saveLabel }: { user: User; onDone: () => v
     }
   }
 
-  async function save() {
-    setSaveError(null);
-    if (rows.some((r) => rowError(r))) {
-      setShowErrors(true);
-      setSaveError('Some classes need fixing. Look for the red notes above.');
-      return;
-    }
-    setSaving(true);
-    try {
-      await api<Schedule>('/api/schedule', { method: 'PUT', body: { classes: toClasses(rows) } });
-      onDone();
-    } catch (err) {
-      setSaveError(message(err, "Couldn't save your schedule. Try again."));
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <View style={styles.block}>
-      <Text style={[type.body, styles.fog]}>
-        Upload a screenshot of your weekly schedule and we will read the classes off it. Nobody else ever sees your
-        classes, only the times you are both free.
-      </Text>
-
-      <Button
-        label={rows.length > 0 ? 'Upload a different screenshot' : 'Upload a schedule screenshot'}
-        variant="quest"
-        onPress={pickScreenshot}
-        loading={reading}
-        disabled={saving}
-      />
-      {reading && <Text style={[type.small, styles.fog]}>Reading your schedule. This takes a few seconds.</Text>}
-      {notice && (
-        <View style={[styles.notice, { borderColor: notice.tone === 'good' ? colors.moss : colors.coral }]}>
-          <Text style={[type.small, { color: notice.tone === 'good' ? colors.moss : colors.coral }]}>{notice.text}</Text>
-        </View>
-      )}
-
-      {loadingExisting ? (
-        <ActivityIndicator color={colors.cobalt} style={{ alignSelf: 'flex-start' }} />
-      ) : (
-        <>
-          {rows.length === 0 && (
-            <Text style={[type.body, styles.fog]}>No classes yet. Upload a screenshot above, or add them one at a time.</Text>
-          )}
-          <ClassEditor rows={rows} onChange={setRows} defaultCampus={user.campus} showErrors={showErrors} />
-        </>
-      )}
-
-      {saveError ? <Text style={[type.bodyStrong, { color: colors.coral }]}>{saveError}</Text> : null}
-      <Button
-        label={rows.length === 0 ? 'Continue without classes' : saveLabel}
-        size="lg"
-        onPress={save}
-        loading={saving}
-        disabled={reading || loadingExisting}
-      />
-    </View>
-  );
-}
-
-/* ---------- Step 3: interests ---------- */
-
-function InterestsStep({ user, onDone }: { user: User; onDone: (user: User) => void }) {
-  const [interests, setInterests] = useState(user.interests);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  function addIdea(idea: string) {
-    const current = interests.trim().replace(/,\s*$/, '');
-    setInterests(current ? `${current}, ${idea}` : idea);
-  }
-  const unused = INTEREST_IDEAS.filter((idea) => !interests.toLowerCase().includes(idea));
-
-  async function save() {
-    if (interests.trim().length < 3) return setError('Add at least one thing you are into.');
+  async function saveSchedule() {
+    if (!rowsValid) return;
     setSaving(true);
     setError(null);
     try {
-      const { user: updated } = await api<{ user: User }>('/api/me', { method: 'PATCH', body: { interests } });
-      onDone(updated);
+      await api<Schedule>('/api/schedule', { method: 'PUT', body: { classes: toClasses(rows) } });
+      if (editing) done();
+      else goTo(3);
     } catch (err) {
-      setError(message(err, "Couldn't save your interests. Try again."));
+      setError(message(err, "Couldn't save your schedule. Try again."));
     } finally {
       setSaving(false);
     }
   }
 
+  /* ---------- Step 3: interests ---------- */
+  const interestText = interests ?? user?.interests ?? '';
+  const interestsValid = interestText.trim().length >= 3;
+  const unusedIdeas = INTEREST_IDEAS.filter((idea) => !interestText.toLowerCase().includes(idea));
+
+  function addIdea(idea: string) {
+    const current = interestText.trim().replace(/,\s*$/, '');
+    setInterests(current ? `${current}, ${idea}` : idea);
+  }
+
+  async function saveInterests() {
+    if (!interestsValid) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await api<{ user: User }>('/api/me', { method: 'PATCH', body: { interests: interestText } });
+      updateUser(res.user);
+      done();
+    } catch (err) {
+      setError(message(err, "Couldn't save your interests. Try again."));
+      setSaving(false);
+    }
+  }
+
+  /* ---------- footer: one primary button, always visible ---------- */
+  const scheduleLoading = step === 2 && !!userId && rowsLoadedFor !== userId;
+  const primary =
+    step === 1
+      ? { label: 'Save and continue', onPress: saveBasics, disabled: !basicsValid }
+      : step === 2
+        ? {
+            label: editing ? 'Save schedule' : rows.length === 0 ? 'Continue without classes' : 'Save and continue',
+            onPress: saveSchedule,
+            disabled: !rowsValid || reading || scheduleLoading,
+          }
+        : { label: editing ? 'Save interests' : 'Save and see my week', onPress: saveInterests, disabled: !interestsValid };
+
+  const back = editing
+    ? () => (router.canGoBack() ? router.back() : router.replace('/home'))
+    : step > 1
+      ? () => goTo((step - 1) as Step)
+      : null;
+
   return (
-    <View style={styles.block}>
-      <Text style={[type.body, styles.fog]}>
-        Be specific. "Bouldering and bad karaoke" finds you better people, and a better side quest, than "sports and
-        music".
-      </Text>
-      <Field
-        label="Your interests"
-        value={interests}
-        onChangeText={setInterests}
-        placeholder="bouldering, indie games, bubble tea"
-        multiline
-        maxLength={500}
-      />
-      {unused.length > 0 && (
-        <View style={styles.group}>
-          <Text style={type.small}>Tap to add</Text>
-          <View style={styles.ideas}>
-            {unused.map((idea) => (
-              <Pressable key={idea} accessibilityRole="button" onPress={() => addIdea(idea)} style={styles.idea}>
-                <Text style={type.small}>{idea}</Text>
-              </Pressable>
-            ))}
+    <SafeAreaView style={styles.screen} edges={['top', 'left', 'right', 'bottom']}>
+      <AppHeader hideSignIn />
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          {!editing && <ProgressBar step={step} total={3} />}
+
+          <Animated.View
+            style={[
+              styles.block,
+              {
+                opacity: slide,
+                transform: [{ translateX: slide.interpolate({ inputRange: [0, 1], outputRange: [direction.current * 36, 0] }) }],
+              },
+            ]}>
+            <Text style={type.title}>{STEP_TITLES[step]}</Text>
+
+            {step === 1 && (
+              <>
+                <Field
+                  label="Name"
+                  value={basics.name}
+                  onChangeText={(name) => setBasics({ ...basics, name })}
+                  onBlur={() => setTouched((t) => ({ ...t, name: true }))}
+                  placeholder="Maya Chen"
+                  autoCapitalize="words"
+                  maxLength={80}
+                  error={touched.name && !nameOk ? 'Enter your name.' : null}
+                />
+                <Field
+                  label="SFU email"
+                  value={basics.email}
+                  onChangeText={(email) => {
+                    setBasics({ ...basics, email });
+                    setExists(false);
+                  }}
+                  onBlur={() => setTouched((t) => ({ ...t, email: true }))}
+                  placeholder="you@sfu.ca"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={!accountMade}
+                  style={accountMade ? styles.locked : undefined}
+                  error={touched.email && !emailOk ? 'Use your SFU email. It must end in @sfu.ca.' : null}
+                  hint={accountMade ? 'Your email is set and cannot be changed.' : undefined}
+                />
+                {exists && (
+                  <View style={styles.notice}>
+                    <Text style={type.bodyStrong}>You already have an account</Text>
+                    <Text style={type.small}>That SFU email is registered. Sign in to pick up where you left off.</Text>
+                    <Button
+                      label="Sign in instead"
+                      variant="secondary"
+                      size="sm"
+                      onPress={() => router.replace(`/sign-in?email=${encodeURIComponent(basics.email.trim())}`)}
+                    />
+                  </View>
+                )}
+                <Chips label="Campus" options={CAMPUSES} value={basics.campus} onChange={(campus) => setBasics({ ...basics, campus })} />
+                <SearchSelect
+                  label="Program"
+                  value={basics.program}
+                  onChange={(program) => setBasics({ ...basics, program })}
+                  onBlur={() => setTouched((t) => ({ ...t, program: true }))}
+                  options={PROGRAMS}
+                  placeholder="Start typing, e.g. Computing Science"
+                  error={touched.program && !programOk ? 'Pick your program from the list.' : null}
+                />
+                <Chips
+                  label="Year"
+                  options={YEARS}
+                  value={basics.year}
+                  onChange={(year) => setBasics({ ...basics, year })}
+                  format={(y) => (y === 5 ? '5+' : String(y))}
+                />
+                <View style={styles.group}>
+                  <Text style={type.small}>Pick an emoji for your profile</Text>
+                  <View style={styles.emojiGrid} accessibilityRole="radiogroup">
+                    {EMOJI.map((e) => (
+                      <Pop key={e} active={e === basics.emoji}>
+                        <Pressable
+                          accessibilityRole="radio"
+                          accessibilityState={{ selected: e === basics.emoji }}
+                          accessibilityLabel={`Emoji ${e}`}
+                          onPress={() => setBasics({ ...basics, emoji: e })}
+                          style={[styles.emoji, e === basics.emoji && styles.emojiSelected]}>
+                          <Text style={styles.emojiText}>{e}</Text>
+                        </Pressable>
+                      </Pop>
+                    ))}
+                  </View>
+                </View>
+              </>
+            )}
+
+            {step === 2 && user && (
+              <>
+                <Text style={[type.body, styles.fog]}>
+                  Upload a screenshot of your weekly schedule and we will read the classes off it. Nobody else ever sees
+                  your classes, only the times you are both free.
+                </Text>
+                <Button
+                  label={rows.length > 0 ? 'Upload a different screenshot' : 'Upload a schedule screenshot'}
+                  variant="quest"
+                  onPress={pickScreenshot}
+                  loading={reading}
+                  disabled={saving}
+                />
+                {reading && <Text style={[type.small, styles.fog]}>Reading your schedule. This takes a few seconds.</Text>}
+                {notice && (
+                  <View style={[styles.notice, { borderColor: notice.tone === 'good' ? colors.moss : colors.coral }]}>
+                    <Text style={[type.small, { color: notice.tone === 'good' ? colors.moss : colors.coral }]}>{notice.text}</Text>
+                  </View>
+                )}
+                {scheduleLoading ? (
+                  <ActivityIndicator color={colors.cobalt} style={styles.left} />
+                ) : (
+                  <>
+                    {rows.length === 0 && (
+                      <Text style={[type.body, styles.fog]}>
+                        No classes yet. Upload a screenshot above, or add them one at a time.
+                      </Text>
+                    )}
+                    <ClassEditor rows={rows} onChange={setRows} defaultCampus={user.campus} showErrors />
+                  </>
+                )}
+              </>
+            )}
+
+            {step === 3 && user && (
+              <>
+                <Text style={[type.body, styles.fog]}>
+                  Be specific. "Bouldering and bad karaoke" finds you better people, and a better side quest, than
+                  "sports and music".
+                </Text>
+                <Field
+                  label="Your interests"
+                  value={interestText}
+                  onChangeText={setInterests}
+                  placeholder="bouldering, indie games, bubble tea"
+                  multiline
+                  maxLength={500}
+                />
+                {unusedIdeas.length > 0 && (
+                  <View style={styles.group}>
+                    <Text style={type.small}>Tap to add</Text>
+                    <View style={styles.ideas}>
+                      {unusedIdeas.map((idea) => (
+                        <Pressable key={idea} accessibilityRole="button" onPress={() => addIdea(idea)} style={styles.idea}>
+                          <Text style={type.small}>{idea}</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </View>
+                )}
+              </>
+            )}
+          </Animated.View>
+        </ScrollView>
+
+        {/* Sticky footer: the main button is always on screen. */}
+        <View style={styles.footer}>
+          {error ? <Text style={[type.small, styles.footerError]}>{error}</Text> : null}
+          <View style={styles.footerRow}>
+            {back && <Button label="Back" variant="secondary" onPress={back} disabled={saving} />}
+            <Button label={primary.label} onPress={primary.onPress} loading={saving} disabled={primary.disabled} style={styles.primary} />
           </View>
         </View>
-      )}
-      {error ? <Text style={[type.bodyStrong, { color: colors.coral }]}>{error}</Text> : null}
-      <Button label="Save and see my week" size="lg" onPress={save} loading={saving} />
-    </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.paper },
   flex: { flex: 1 },
+  left: { alignSelf: 'flex-start' },
   scroll: { backgroundColor: colors.chalk },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.chalk },
   content: {
     padding: spacing.xl,
-    paddingBottom: spacing.xxl * 3,
-    gap: spacing.sm,
+    paddingBottom: spacing.xxl,
+    gap: spacing.lg,
     width: '100%',
     maxWidth: 560,
     alignSelf: 'center',
   },
   fog: { color: colors.fog },
-  block: { marginTop: spacing.lg, gap: spacing.lg },
+  block: { gap: spacing.lg },
   group: { gap: spacing.xs },
+  locked: { backgroundColor: colors.muted, color: colors.fog },
   emojiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   emoji: {
     width: 48,
@@ -394,7 +474,14 @@ const styles = StyleSheet.create({
   },
   emojiSelected: { backgroundColor: colors.cobalt },
   emojiText: { fontSize: 24 },
-  notice: { borderWidth, borderRadius: radius.md, backgroundColor: colors.paper, padding: spacing.md },
+  notice: {
+    borderWidth,
+    borderColor: colors.coral,
+    borderRadius: radius.md,
+    backgroundColor: colors.paper,
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
   ideas: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   idea: {
     paddingHorizontal: spacing.md,
@@ -405,4 +492,15 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: colors.paper,
   },
+  footer: {
+    gap: spacing.sm,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.paper,
+    borderTopWidth: borderWidth,
+    borderTopColor: colors.ink,
+  },
+  footerRow: { flexDirection: 'row', gap: spacing.md, width: '100%', maxWidth: 560 - spacing.xl * 2, alignSelf: 'center' },
+  footerError: { color: colors.coral, width: '100%', maxWidth: 560 - spacing.xl * 2, alignSelf: 'center' },
+  primary: { flex: 1, alignSelf: 'stretch' },
 });

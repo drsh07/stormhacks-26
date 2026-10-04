@@ -56,7 +56,7 @@ export function DemoSwitcher() {
         onPress={show}
         style={({ pressed }) => [styles.chip, pressed ? shadow.none : shadow.hardSm]}>
         <Text style={type.small} numberOfLines={1}>
-          {user ? `${user.avatar_emoji} ${user.name.split(' ')[0]}` : 'Demo: pick a user'}
+          {user ? `${user.avatar_emoji} ${user.name.split(' ')[0]}` : 'Demo'}
         </Text>
       </Pressable>
 
@@ -127,7 +127,7 @@ export function DemoSwitcher() {
 
 const styles = StyleSheet.create({
   chip: {
-    maxWidth: 190,
+    maxWidth: 130,
     paddingHorizontal: spacing.md,
     height: 36,
     justifyContent: 'center',

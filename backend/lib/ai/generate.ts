@@ -33,7 +33,7 @@ export async function generateText(
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       errors.push(`${model}: ${message.slice(0, 300)}`);
-      // A bad key or an exhausted quota fails the same way on every model, so stop early.
+      // Keep going: quotas are per model, so the next one may still have room.
     }
   }
   throw new AiUnavailableError(errors.join(" | "));

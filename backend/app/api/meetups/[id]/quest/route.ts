@@ -25,6 +25,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!meetup || (meetup.requester_id !== user.id && meetup.receiver_id !== user.id)) {
       return NextResponse.json({ error: "Meetup not found." }, { status: 404 });
     }
+    if (meetup.event_id) {
+      return NextResponse.json({ error: "You're going to an event together, so there's no side quest for this one." }, { status: 409 });
+    }
     if (meetup.status !== "accepted") {
       return NextResponse.json({ error: "Quests are for accepted meetups that aren't finished yet." }, { status: 409 });
     }

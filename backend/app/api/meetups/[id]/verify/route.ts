@@ -37,7 +37,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!meetup || (meetup.requester_id !== user.id && meetup.receiver_id !== user.id)) {
       return NextResponse.json({ error: "Meetup not found." }, { status: 404 });
     }
-    const quest = await getCurrentQuest(id);
+    const quest = meetup.event_id ? null : await getCurrentQuest(id);
     if (!quest) return NextResponse.json({ error: "This meetup has no quest to prove yet." }, { status: 409 });
     if (quest.status === "verified") {
       // The other person got there first. Nothing to do.

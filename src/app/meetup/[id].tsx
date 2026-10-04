@@ -12,7 +12,7 @@ import { AI_TIMEOUT_MS, api, ApiError } from '@/lib/api';
 import { pickImage } from '@/lib/image';
 import { useSession } from '@/lib/session';
 import { borderWidth, colors, fonts, radius, spacing, type } from '@/lib/theme';
-import { formatDuration } from '@/lib/time';
+import { formatDate, formatDuration } from '@/lib/time';
 import type { MeetupDetail } from '@/lib/types';
 import { usePolling } from '@/lib/usePolling';
 
@@ -147,6 +147,7 @@ export default function MeetupScreen() {
   }
 
   const first = detail?.other.name.split(' ')[0] ?? '';
+  const event = detail?.event ?? null;
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'left', 'right', 'bottom']}>
@@ -177,16 +178,45 @@ export default function MeetupScreen() {
                 <Text style={[type.body, styles.fog]}>
                   {detail.meetup.day} {detail.meetup.start_time} to {detail.meetup.end_time} ({formatDuration(detail.meetup.minutes)})
                 </Text>
-                <Text style={[type.body, styles.fog]}>{detail.meetup.spot}</Text>
+                {!event && <Text style={[type.body, styles.fog]}>{detail.meetup.spot}</Text>}
               </View>
             </View>
+
+            {/* Going to an event together: show the event, never a quest. */}
+            {event && (
+              <Card>
+                <Text style={[type.small, styles.fog]}>{status === 'accepted' ? 'You are going together' : 'The event'}</Text>
+                <Text style={type.heading}>{event.title}</Text>
+                <View style={styles.facts}>
+                  <Text style={type.body}>
+                    <Text style={type.bodyStrong}>Who: </Text>you and {detail.other.name}
+                  </Text>
+                  <Text style={type.body}>
+                    <Text style={type.bodyStrong}>When: </Text>
+                    {detail.meetup.day}
+                    {event.date ? `, ${formatDate(event.date)}` : ''}, {event.start_time} to {event.end_time}
+                  </Text>
+                  <Text style={type.body}>
+                    <Text style={type.bodyStrong}>Where: </Text>
+                    {event.location}
+                    {event.campus ? `, ${event.campus}` : ''}
+                  </Text>
+                </View>
+                {event.description ? <Text style={type.body}>{event.description}</Text> : null}
+                <Text style={[type.small, styles.fog]}>
+                  You are both free {detail.meetup.start_time} to {detail.meetup.end_time}.
+                </Text>
+              </Card>
+            )}
 
             {/* 1. Invite sent, waiting on an answer */}
             {status === 'proposed' && detail.role === 'receiver' && (
               <Card>
-                <Text style={type.heading}>{first} wants to meet</Text>
+                <Text style={type.heading}>{event ? `${first} wants to go to this with you` : `${first} wants to meet`}</Text>
                 <Text style={type.body}>
-                  {detail.quest_required
+                  {event
+                    ? 'Say yes and you are going together. No side quest for events: the event is the plan.'
+                    : detail.quest_required
                     ? 'Say yes and you both get a side quest to do together. It is mandatory the first time you meet.'
                     : 'You two have met before, so a side quest is optional this time.'}
                 </Text>
@@ -215,7 +245,17 @@ export default function MeetupScreen() {
             )}
 
             {/* 3. Accepted: the quest */}
-            {status === 'accepted' && !quest && (
+            {status === 'accepted' && event && (
+              <Card>
+                <Text style={type.heading}>It is a plan</Text>
+                <Text style={type.body}>
+                  {first} is in. Find each other at {event.location} when it starts.
+                </Text>
+                <Button label="Back to my meetups" variant="secondary" onPress={() => router.replace('/meetups')} />
+              </Card>
+            )}
+
+            {status === 'accepted' && !event && !quest && (
               <Card>
                 <Text style={type.heading}>You are on</Text>
                 <Text style={type.body}>
@@ -225,7 +265,7 @@ export default function MeetupScreen() {
               </Card>
             )}
 
-            {status === 'accepted' && quest && (
+            {status === 'accepted' && !event && quest && (
               <>
                 <QuestCard quest={quest} revealed={revealed} onReveal={reveal} />
                 {revealed && (
@@ -333,6 +373,7 @@ const styles = StyleSheet.create({
   who: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
   bigEmoji: { fontSize: 48 },
   buttons: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
+  facts: { gap: 2 },
   rejection: {
     borderWidth,
     borderColor: colors.coral,

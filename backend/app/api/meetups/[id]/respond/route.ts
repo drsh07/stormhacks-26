@@ -43,7 +43,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: `This meetup is already ${meetup.status}.` }, { status: 409 });
     }
 
-    if (meetup.status === "accepted" && (await isFirstMeetup(meetup)) && !(await getCurrentQuest(id))) {
+    // Going to an event together is the plan itself, so event meetups get no quest.
+    if (meetup.status === "accepted" && !meetup.event_id && (await isFirstMeetup(meetup)) && !(await getCurrentQuest(id))) {
       await createQuestFor(meetup);
     }
     return NextResponse.json(await getMeetupDetail(id, user.id));

@@ -80,7 +80,21 @@ export interface Quest {
   verdict_comment: string | null;
 }
 
+export interface MeetupEvent {
+  id: string;
+  title: string;
+  description: string;
+  location: string;
+  campus: Campus | null;
+  /** "YYYY-MM-DD", or "" if the event was removed. */
+  date: string;
+  start_time: string;
+  end_time: string;
+}
+
 export interface MeetupDetail {
+  /** Present when this meetup is "go to this event together". Then there is no quest. */
+  event: MeetupEvent | null;
   meetup: { id: string; day: Day; start_time: string; end_time: string; spot: string; status: MeetupStatus; minutes: number };
   role: 'requester' | 'receiver';
   other: { id: string; name: string; avatar_emoji: string; program: string };
@@ -100,6 +114,7 @@ export interface MeetupListItem {
   spot: string;
   status: MeetupStatus;
   quest_title: string | null;
+  is_event: boolean;
 }
 
 export interface EventFeedItem {

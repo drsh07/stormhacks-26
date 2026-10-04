@@ -13,6 +13,8 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public status: number,
+    /** Machine-readable reason from the server, e.g. "exists" or "not_found". */
+    public code?: string,
   ) {
     super(message);
   }
@@ -86,7 +88,8 @@ export async function api<T>(path: string, options: Options = {}): Promise<T> {
       data && typeof data === 'object' && 'error' in data && typeof data.error === 'string'
         ? data.error
         : `The server returned an error (${res.status}).`;
-    throw new ApiError(message, res.status);
+    const code = data && typeof data === 'object' && 'code' in data && typeof data.code === 'string' ? data.code : undefined;
+    throw new ApiError(message, res.status, code);
   }
   return data as T;
 }

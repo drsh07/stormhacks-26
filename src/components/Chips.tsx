@@ -1,6 +1,26 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, type ReactNode } from 'react';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+
+import { useReduceMotion } from '@/lib/motion';
 
 import { borderWidth, colors, fonts, radius, spacing, type } from '@/lib/theme';
+
+/** Wraps a chip so it "pops" with a small spring the moment it becomes selected. */
+export function Pop({ active, children }: { active: boolean; children: ReactNode }) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const reduce = useReduceMotion();
+  const wasActive = useRef(active);
+
+  useEffect(() => {
+    if (active && !wasActive.current && !reduce) {
+      scale.setValue(0.86);
+      Animated.spring(scale, { toValue: 1, friction: 4, tension: 220, useNativeDriver: true }).start();
+    }
+    wasActive.current = active;
+  }, [active, reduce, scale]);
+
+  return <Animated.View style={{ transform: [{ scale }] }}>{children}</Animated.View>;
+}
 
 interface Props<T extends string | number> {
   /** Optional label shown above the chips. */
@@ -23,17 +43,18 @@ export function Chips<T extends string | number>({ label, options, value, onChan
         {options.map((option) => {
           const selected = option === value;
           return (
-            <Pressable
-              key={String(option)}
-              accessibilityRole="radio"
-              accessibilityState={{ selected }}
-              onPress={() => onChange(option)}
-              hitSlop={4}
-              style={[styles.chip, compact && styles.compact, selected && styles.selected]}>
-              <Text style={[styles.text, compact && styles.compactText, selected && { color: colors.white }]}>
-                {format ? format(option) : String(option)}
-              </Text>
-            </Pressable>
+            <Pop key={String(option)} active={selected}>
+              <Pressable
+                accessibilityRole="radio"
+                accessibilityState={{ selected }}
+                onPress={() => onChange(option)}
+                hitSlop={4}
+                style={[styles.chip, compact && styles.compact, selected && styles.selected]}>
+                <Text style={[styles.text, compact && styles.compactText, selected && { color: colors.white }]}>
+                  {format ? format(option) : String(option)}
+                </Text>
+              </Pressable>
+            </Pop>
           );
         })}
       </View>
@@ -58,15 +79,16 @@ export function MultiChips<T extends string>({ label, options, values, onChange,
         {options.map((option) => {
           const selected = values.includes(option);
           return (
-            <Pressable
-              key={option}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: selected }}
-              onPress={() => onChange(selected ? values.filter((v) => v !== option) : [...values, option])}
-              hitSlop={4}
-              style={[styles.chip, compact && styles.compact, selected && styles.selected]}>
-              <Text style={[styles.text, compact && styles.compactText, selected && { color: colors.white }]}>{option}</Text>
-            </Pressable>
+            <Pop key={option} active={selected}>
+              <Pressable
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: selected }}
+                onPress={() => onChange(selected ? values.filter((v) => v !== option) : [...values, option])}
+                hitSlop={4}
+                style={[styles.chip, compact && styles.compact, selected && styles.selected]}>
+                <Text style={[styles.text, compact && styles.compactText, selected && { color: colors.white }]}>{option}</Text>
+              </Pressable>
+            </Pop>
           );
         })}
       </View>

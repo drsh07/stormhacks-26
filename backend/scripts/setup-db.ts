@@ -70,6 +70,7 @@ function schema(vectorType: string): string[] {
       end_time CHAR(5) NOT NULL,
       spot VARCHAR(160) NOT NULL,
       status ENUM('proposed','accepted','completed','declined') NOT NULL DEFAULT 'proposed',
+      event_id CHAR(36) NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       INDEX idx_meetups_requester (requester_id),
       INDEX idx_meetups_receiver (receiver_id)
