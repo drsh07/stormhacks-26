@@ -101,3 +101,20 @@ export interface MeetupListItem {
   status: MeetupStatus;
   quest_title: string | null;
 }
+
+export interface EventFeedItem {
+  id: string;
+  title: string;
+  description: string;
+  location: string;
+  campus: Campus | null;
+  /** "YYYY-MM-DD" */
+  date: string;
+  day: Day;
+  start_time: string;
+  end_time: string;
+  host: { name: string; avatar_emoji: string };
+  is_mine: boolean;
+  similarity: number;
+  people: { id: string; name: string; avatar_emoji: string }[];
+}

@@ -5,13 +5,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { borderWidth, colors, fonts, spacing } from '@/lib/theme';
 
 const TABS: { key: string; label: string; href: Href }[] = [
-  { key: 'home', label: 'My week', href: '/home' },
+  { key: 'home', label: 'Week', href: '/home' },
   { key: 'people', label: 'People', href: '/people' },
   { key: 'meetups', label: 'Meetups', href: '/meetups' },
+  { key: 'events', label: 'Events', href: '/events' },
 ];
 
 /** Bottom navigation between the main screens. `current` is the active tab's key. */
-export function NavBar({ current }: { current: 'home' | 'people' | 'meetups' }) {
+export function NavBar({ current }: { current: 'home' | 'people' | 'meetups' | 'events' }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   return (
@@ -41,8 +42,8 @@ const styles = StyleSheet.create({
   bar: {
     flexDirection: 'row',
     paddingTop: spacing.sm,
-    paddingHorizontal: spacing.md,
-    gap: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    gap: 2,
     backgroundColor: colors.paper,
     borderTopWidth: borderWidth,
     borderTopColor: colors.ink,
@@ -50,5 +51,5 @@ const styles = StyleSheet.create({
   tab: { flex: 1, alignItems: 'center' },
   pill: { minHeight: 40, paddingHorizontal: spacing.md, justifyContent: 'center', borderRadius: 999 },
   pillSelected: { backgroundColor: colors.cobalt },
-  label: { fontFamily: fonts.displayBold, fontSize: 15, color: colors.ink },
+  label: { fontFamily: fonts.displayBold, fontSize: 14, color: colors.ink },
 });

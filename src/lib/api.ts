@@ -6,6 +6,8 @@ export const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:300
 export const DEMO_MODE = process.env.EXPO_PUBLIC_DEMO_MODE === 'true';
 
 const TIMEOUT_MS = 20000;
+/** For calls that wait on the AI (reading a schedule, writing a quest, checking a photo). */
+export const AI_TIMEOUT_MS = 60000;
 
 export class ApiError extends Error {
   constructor(
@@ -35,6 +37,8 @@ interface Options {
   body?: Record<string, unknown> | FormData;
   /** Override the signed-in user for this one call. */
   userId?: string | null;
+  /** How long to wait before giving up. Defaults to 20 seconds. */
+  timeoutMs?: number;
 }
 
 /** Fetch JSON from the backend. Throws ApiError with a message that is safe to show. */
@@ -48,7 +52,11 @@ export async function api<T>(path: string, options: Options = {}): Promise<T> {
   if (body && !isForm) headers['Content-Type'] = 'application/json';
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, options.timeoutMs ?? TIMEOUT_MS);
 
   let res: Response;
   try {
@@ -59,7 +67,8 @@ export async function api<T>(path: string, options: Options = {}): Promise<T> {
       signal: controller.signal,
     });
   } catch {
-    throw new ApiError(`Can't reach the server at ${API_URL}. Check EXPO_PUBLIC_API_URL and your Wi-Fi.`, 0);
+    if (timedOut) throw new ApiError('That took too long and we gave up. Try again.', 0);
+    throw new ApiError("Can't reach the server. Check your connection and try again.", 0);
   } finally {
     clearTimeout(timer);
   }

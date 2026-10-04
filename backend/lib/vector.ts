@@ -33,6 +33,42 @@ export async function interestSimilarities(userId: string, otherIds: string[]): 
   return similaritiesInTypeScript(userId, otherIds);
 }
 
+/**
+ * Similarity between one user's interests and a list of events (0 to 1).
+ * Same two paths as above: TiDB vector search first, TypeScript cosine if not.
+ */
+export async function eventSimilarities(userId: string, eventIds: string[]): Promise<Map<string, number>> {
+  if (eventIds.length === 0) return new Map();
+  if (vectorSqlAvailable !== false) {
+    try {
+      const rows = await query<{ id: string; similarity: number | null }>(
+        `SELECT e.id AS id, 1 - VEC_COSINE_DISTANCE(me.interests_embedding, e.embedding) AS similarity
+           FROM users me
+           JOIN events e ON e.id IN (?)
+          WHERE me.id = ? AND me.interests_embedding IS NOT NULL AND e.embedding IS NOT NULL`,
+        [eventIds as unknown as string, userId],
+      );
+      vectorSqlAvailable = true;
+      return new Map(rows.map((r) => [r.id, clamp01(Number(r.similarity))]));
+    } catch (err) {
+      vectorSqlAvailable = false;
+      console.warn("[vector] SQL vector search unavailable, using TypeScript cosine:", (err as Error).message);
+    }
+  }
+  const [meRows, eventRows] = await Promise.all([
+    query<{ interests_embedding: unknown }>("SELECT interests_embedding FROM users WHERE id = ? LIMIT 1", [userId]),
+    query<{ id: string; embedding: unknown }>("SELECT id, embedding FROM events WHERE id IN (?)", [eventIds as unknown as string]),
+  ]);
+  const mine = parseVector(meRows[0]?.interests_embedding);
+  const result = new Map<string, number>();
+  if (!mine) return result;
+  for (const row of eventRows) {
+    const theirs = parseVector(row.embedding);
+    if (theirs) result.set(row.id, clamp01(cosineSimilarity(mine, theirs)));
+  }
+  return result;
+}
+
 // Remember the answer so we only probe the database once per server process.
 let vectorSqlAvailable: boolean | undefined;
 

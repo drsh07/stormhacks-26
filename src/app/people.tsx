@@ -6,12 +6,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppHeader } from '@/components/AppHeader';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
+import { EventCard } from '@/components/EventCard';
 import { MatchCard } from '@/components/MatchCard';
 import { NavBar } from '@/components/NavBar';
 import { api } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { colors, spacing, type } from '@/lib/theme';
-import type { Match } from '@/lib/types';
+import type { EventFeedItem, Match } from '@/lib/types';
 
 type State =
   | { status: 'loading' }
@@ -27,6 +28,7 @@ export default function People() {
   const { day, start, end } = useLocalSearchParams<{ day?: string; start?: string; end?: string }>();
   const { user, loading: sessionLoading } = useSession();
   const [state, setState] = useState<State>({ status: 'loading' });
+  const [blockEvents, setBlockEvents] = useState<EventFeedItem[]>([]);
   const userId = user?.id;
   const filtered = !!(day && start && end);
 
@@ -39,6 +41,14 @@ export default function People() {
         : '/api/matches';
       const data = await api<{ matches: Match[] }>(path);
       setState({ status: 'ready', matches: data.matches });
+      // For a single block, also show events happening then. Not worth an error screen if it fails.
+      if (filtered) {
+        api<{ events: EventFeedItem[] }>(path.replace('/api/matches', '/api/events'))
+          .then((res) => setBlockEvents(res.events))
+          .catch(() => setBlockEvents([]));
+      } else {
+        setBlockEvents([]);
+      }
     } catch (err) {
       setState({ status: 'error', message: err instanceof Error ? err.message : "Couldn't load your matches." });
     }
@@ -109,6 +119,15 @@ export default function People() {
               }
             />
           ))}
+
+        {state.status === 'ready' && filtered && blockEvents.length > 0 && (
+          <>
+            <Text style={type.heading}>Events in this block</Text>
+            {blockEvents.map((event) => (
+              <EventCard key={event.id} event={event} />
+            ))}
+          </>
+        )}
       </ScrollView>
       <NavBar current="people" />
     </SafeAreaView>

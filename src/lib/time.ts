@@ -27,3 +27,32 @@ export function todayInVancouver(): Day {
   }
   return DAYS[(new Date().getDay() + 6) % 7];
 }
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** "2026-10-06" -> "Oct 6" */
+export function formatDate(date: string): string {
+  const [, m, d] = date.split('-').map(Number);
+  return `${MONTHS[m - 1]} ${d}`;
+}
+
+/** Today's date in Vancouver as "YYYY-MM-DD". */
+function vancouverToday(): string {
+  try {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Vancouver' }).format(new Date());
+  } catch {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  }
+}
+
+/** The next `count` dates starting today (Vancouver), for a date picker. */
+export function nextDays(count: number): { date: string; day: Day; label: string }[] {
+  const [y, m, d] = vancouverToday().split('-').map(Number);
+  return Array.from({ length: count }, (_, i) => {
+    const dt = new Date(Date.UTC(y, m - 1, d + i));
+    const date = dt.toISOString().slice(0, 10);
+    const day = DAYS[(dt.getUTCDay() + 6) % 7];
+    return { date, day, label: `${day} ${dt.getUTCDate()}` };
+  });
+}

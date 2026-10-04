@@ -1,4 +1,3 @@
-import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -9,7 +8,8 @@ import { Button } from '@/components/Button';
 import { Chips } from '@/components/Chips';
 import { ClassEditor, rowError, toClasses, toRows, type ClassRow } from '@/components/ClassEditor';
 import { Field } from '@/components/Field';
-import { api } from '@/lib/api';
+import { AI_TIMEOUT_MS, api } from '@/lib/api';
+import { pickImage } from '@/lib/image';
 import { useSession } from '@/lib/session';
 import { borderWidth, colors, radius, spacing, type } from '@/lib/theme';
 import { CAMPUSES, type Campus, type ClassSlot, type Schedule, type User } from '@/lib/types';
@@ -216,17 +216,10 @@ function ScheduleStep({ user, onDone, saveLabel }: { user: User; onDone: () => v
 
   async function pickScreenshot() {
     setNotice(null);
-    let picked: ImagePicker.ImagePickerResult;
-    try {
-      picked = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], base64: true, quality: 0.6 });
-    } catch {
-      setNotice({ tone: 'bad', text: "Couldn't open your photos. Check the photo permission in Settings, or add classes by hand below." });
-      return;
-    }
-    if (picked.canceled) return;
-    const asset = picked.assets[0];
-    if (!asset?.base64) {
-      setNotice({ tone: 'bad', text: "Couldn't read that image. Try another screenshot, or add classes by hand below." });
+    const picked = await pickImage('library');
+    if (picked.status === 'cancelled') return;
+    if (picked.status === 'error') {
+      setNotice({ tone: 'bad', text: `${picked.message} You can still add classes by hand below.` });
       return;
     }
 
@@ -234,7 +227,8 @@ function ScheduleStep({ user, onDone, saveLabel }: { user: User; onDone: () => v
     try {
       const result = await api<ExtractResponse>('/api/schedule/extract', {
         method: 'POST',
-        body: { imageBase64: asset.base64, mimeType: asset.mimeType ?? 'image/jpeg' },
+        body: { imageBase64: picked.image.base64, mimeType: picked.image.mimeType },
+        timeoutMs: AI_TIMEOUT_MS,
       });
       if (result.ok && result.classes.length > 0) {
         setRows(toRows(result.classes));

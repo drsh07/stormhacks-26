@@ -1,5 +1,4 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as ImagePicker from 'expo-image-picker';
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, ActivityIndicator, Animated, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -9,7 +8,8 @@ import { AppHeader } from '@/components/AppHeader';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { QuestCard } from '@/components/QuestCard';
-import { api, ApiError } from '@/lib/api';
+import { AI_TIMEOUT_MS, api, ApiError } from '@/lib/api';
+import { pickImage } from '@/lib/image';
 import { useSession } from '@/lib/session';
 import { borderWidth, colors, fonts, radius, spacing, type } from '@/lib/theme';
 import { formatDuration } from '@/lib/time';
@@ -102,14 +102,14 @@ export default function MeetupScreen() {
   }
 
   const respond = (action: 'accept' | 'decline') =>
-    run(action, () => api<MeetupDetail>(`/api/meetups/${id}/respond`, { method: 'POST', body: { action } }));
+    run(action, () => api<MeetupDetail>(`/api/meetups/${id}/respond`, { method: 'POST', body: { action }, timeoutMs: AI_TIMEOUT_MS }));
 
-  const getQuest = () => run('quest', () => api<MeetupDetail>(`/api/meetups/${id}/quest`, { method: 'POST', body: {} }));
+  const getQuest = () => run('quest', () => api<MeetupDetail>(`/api/meetups/${id}/quest`, { method: 'POST', body: {}, timeoutMs: AI_TIMEOUT_MS }));
 
   const reroll = () =>
     run(
       'reroll',
-      () => api<MeetupDetail>(`/api/meetups/${id}/quest`, { method: 'POST', body: { reroll: true } }),
+      () => api<MeetupDetail>(`/api/meetups/${id}/quest`, { method: 'POST', body: { reroll: true }, timeoutMs: AI_TIMEOUT_MS }),
       (next) => {
         // They asked for a new quest, so show it straight away.
         setRejection(null);
@@ -123,26 +123,10 @@ export default function MeetupScreen() {
   async function submitProof(source: 'camera' | 'library') {
     setActionError(null);
     setRejection(null);
-    let picked: ImagePicker.ImagePickerResult;
-    try {
-      if (source === 'camera') {
-        const permission = await ImagePicker.requestCameraPermissionsAsync();
-        if (!permission.granted) {
-          setActionError('Camera access is off. Allow it in Settings, or choose a photo instead.');
-          return;
-        }
-        picked = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], base64: true, quality: 0.5 });
-      } else {
-        picked = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], base64: true, quality: 0.5 });
-      }
-    } catch {
-      setActionError(source === 'camera' ? "Couldn't open the camera. Choose a photo instead." : "Couldn't open your photos. Check the photo permission in Settings.");
-      return;
-    }
-    if (picked.canceled) return;
-    const asset = picked.assets[0];
-    if (!asset?.base64) {
-      setActionError("Couldn't read that photo. Try another one.");
+    const picked = await pickImage(source);
+    if (picked.status === 'cancelled') return;
+    if (picked.status === 'error') {
+      setActionError(picked.message);
       return;
     }
 
@@ -150,7 +134,8 @@ export default function MeetupScreen() {
     try {
       const res = await api<VerifyResponse>(`/api/meetups/${id}/verify`, {
         method: 'POST',
-        body: { imageBase64: asset.base64, mimeType: asset.mimeType ?? 'image/jpeg' },
+        body: { imageBase64: picked.image.base64, mimeType: picked.image.mimeType },
+        timeoutMs: AI_TIMEOUT_MS,
       });
       setDetail(res.detail);
       if (!res.verified) setRejection(res.comment);
