@@ -7,6 +7,7 @@ export const metadata: Metadata = {
   description: "Find someone at SFU who is free when you are, and get a side quest to do together.",
 };
 
+// The product is the Expo app; this web shell only exists to host the API.
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="h-full antialiased">

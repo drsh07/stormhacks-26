@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppHeader } from '@/components/AppHeader';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
+import { NavBar } from '@/components/NavBar';
 import { api } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { borderWidth, colors, fonts, radius, spacing, type } from '@/lib/theme';
@@ -124,6 +125,7 @@ export default function Home() {
               })}
             </View>
 
+            <Text style={[type.small, styles.fog]}>Tap a free block to see who else is free then.</Text>
             <View style={styles.timeline}>
               {itemsFor(day, schedule).map((item) =>
                 item.type === 'class' ? (
@@ -136,6 +138,7 @@ export default function Home() {
           </>
         )}
       </ScrollView>
+      <NavBar current="home" />
     </SafeAreaView>
   );
 }
@@ -153,18 +156,23 @@ function ClassItem({ slot }: { slot: ClassSlot }) {
 }
 
 function FreeItem({ block }: { block: FreeBlock }) {
+  const router = useRouter();
   const length = formatDuration(toMinutes(block.end_time) - toMinutes(block.start_time));
   const gap = block.kind === 'on_campus_gap';
   return (
-    <View style={[styles.item, gap ? styles.gapItem : styles.freeItem]}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityHint="Shows people who are free in this block"
+      onPress={() => router.push(`/people?day=${block.day}&start=${block.start_time}&end=${block.end_time}`)}
+      style={({ pressed }) => [styles.item, gap ? styles.gapItem : styles.freeItem, pressed && styles.pressed]}>
       <Text style={[styles.time, gap && { color: colors.white }]}>
         {block.start_time} to {block.end_time}
       </Text>
       <Text style={[type.heading, gap && { color: colors.white }]}>{gap ? `Gap on campus, ${length}` : `Free, ${length}`}</Text>
       <Text style={[type.small, gap ? { color: colors.white } : styles.fog]}>
-        {gap ? `Stuck at ${block.campus} between classes` : 'No class'}
+        {gap ? `Stuck at ${block.campus} between classes. See who else is.` : 'No class. See who else is free.'}
       </Text>
-    </View>
+    </Pressable>
   );
 }
 
@@ -204,4 +212,5 @@ const styles = StyleSheet.create({
   gapItem: { backgroundColor: colors.cobalt },
   freeItem: { backgroundColor: 'transparent', borderStyle: 'dashed', borderColor: colors.fog },
   time: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.fog },
+  pressed: { opacity: 0.7 },
 });

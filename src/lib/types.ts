@@ -46,3 +46,23 @@ export interface Schedule {
   classes: ClassSlot[];
   free_blocks: FreeBlock[];
 }
+
+/** A stretch of time when both people are free and can be on the same campus. */
+export interface Overlap {
+  day: Day;
+  start_time: string;
+  end_time: string;
+  minutes: number;
+  campus: Campus;
+  on_campus: boolean;
+}
+
+export interface Match {
+  user: { id: string; name: string; avatar_emoji: string; program: string; year: number; campus: Campus };
+  score: number;
+  overlap: Overlap;
+  overlaps: Overlap[];
+  shared_interests: string[];
+  shared_courses: string[];
+  why: string;
+}

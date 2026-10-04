@@ -16,17 +16,29 @@ export async function embedTexts(texts: string[]): Promise<EmbedResult> {
   const ai = getGemini();
   if (ai) {
     try {
-      const res = await ai.models.embedContent({
-        model: AI_CONFIG.embeddingModel,
-        contents: texts,
-        config: { outputDimensionality: AI_CONFIG.embeddingDimensions },
-      });
-      const vectors = (res.embeddings ?? []).map((e) => e.values ?? []);
-      const ok =
-        vectors.length === texts.length &&
-        vectors.every((v) => v.length === AI_CONFIG.embeddingDimensions);
-      if (ok) return { vectors, source: "gemini" };
-      console.error("[ai/embed] unexpected embedding shape, using local fallback");
+      // One request per text. Sending a list in one request is not reliable:
+      // some embedding models merge the whole list into a single vector.
+      const vectors: number[][] = new Array(texts.length);
+      const CONCURRENCY = 5;
+      let next = 0;
+      const worker = async () => {
+        while (next < texts.length) {
+          const i = next++;
+          const res = await ai.models.embedContent({
+            model: AI_CONFIG.embeddingModel,
+            contents: texts[i],
+            config: { outputDimensionality: AI_CONFIG.embeddingDimensions },
+          });
+          vectors[i] = res.embeddings?.[0]?.values ?? [];
+        }
+      };
+      await Promise.all(Array.from({ length: Math.min(CONCURRENCY, texts.length) }, worker));
+
+      const bad = vectors.find((v) => v.length !== AI_CONFIG.embeddingDimensions);
+      if (!bad) return { vectors, source: "gemini" };
+      console.error(
+        `[ai/embed] expected ${AI_CONFIG.embeddingDimensions} dimensions, got ${bad.length}; using local fallback`,
+      );
     } catch (err) {
       console.error("[ai/embed] Gemini embedding failed, using local fallback:", err);
     }
