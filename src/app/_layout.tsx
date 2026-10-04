@@ -50,7 +50,7 @@ function RootStack() {
     <Stack
       screenOptions={{
         headerShown: false,
-        cardStyle: { backgroundColor: colors.chalk },
+        cardStyle: { flex: 1, backgroundColor: colors.chalk },
         gestureEnabled: false,
         cardStyleInterpolator: reduce ? CardStyleInterpolators.forFadeFromCenter : CardStyleInterpolators.forHorizontalIOS,
         transitionSpec: {
