@@ -1,5 +1,5 @@
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, CircleCheck, GraduationCap, Mail, UserRound } from 'lucide-react-native';
+import { CircleCheck, GraduationCap, Mail, UserRound } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -16,6 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppHeader } from '@/components/AppHeader';
+import { BackButton } from '@/components/BackButton';
 import { Button } from '@/components/Button';
 import { Chips, Pop } from '@/components/Chips';
 import { ClassEditor, rowError, toClasses, toRows, type ClassRow } from '@/components/ClassEditor';
@@ -150,7 +151,8 @@ export default function Onboarding() {
   // Signed out in the middle of editing (or the account was wiped).
   if (!user && (editing || step !== 1)) return <Redirect href="/" />;
 
-  const done = () => router.replace('/home');
+  // Editing returns to the tab the person came from; finishing sign-up opens the week view.
+  const done = () => (editing && router.canGoBack() ? router.back() : router.replace('/home'));
 
   /* ---------- Step 1: basics ---------- */
   const nameOk = basics.name.trim().length >= 2;
@@ -265,17 +267,16 @@ export default function Onboarding() {
           }
         : { label: editing ? 'Save interests' : 'Save and see my week', onPress: saveInterests, disabled: !interestsValid };
 
-  const back = editing
-    ? () => (router.canGoBack() ? router.back() : router.replace('/home'))
-    : step > 1
-      ? () => goTo((step - 1) as Step)
-      : null;
+  // Steps 2 and 3 of sign-up go back one step (keeping what was typed).
+  // Otherwise Back leaves the screen: to the week view when editing, to the start when signing up.
+  const stepBack = !editing && step > 1 ? () => goTo((step - 1) as Step) : undefined;
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'left', 'right', 'bottom']}>
       <AppHeader hideSignIn />
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <BackButton fallback={editing ? '/home' : '/'} onPress={stepBack} disabled={saving} />
           {!editing && <ProgressBar step={step} total={3} />}
 
           <Animated.View
@@ -451,7 +452,6 @@ export default function Onboarding() {
             </View>
           ) : null}
           <View style={styles.footerRow}>
-            {back && <Button label="Back" icon={ArrowLeft} variant="secondary" onPress={back} disabled={saving} />}
             <Button label={primary.label} onPress={primary.onPress} loading={saving} disabled={primary.disabled} style={styles.primary} />
           </View>
         </View>

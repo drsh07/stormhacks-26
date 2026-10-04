@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { COOKIE_OPTIONS, USER_COLUMNS, USER_COOKIE } from "@/lib/auth";
 import { execute, query } from "@/lib/db";
 import type { User } from "@/lib/types";
+import { isReservedDemoName } from "@/lib/demo";
 import { parseProfile } from "@/lib/users";
 
 /**
@@ -19,6 +20,9 @@ export async function POST(request: Request) {
   const parsed = parseProfile(body, ["name", "email", "campus"]);
   if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
   const p = parsed.value;
+  if (isReservedDemoName(p.name!)) {
+    return NextResponse.json({ error: 'Names starting with "Demo" are reserved for the demo accounts.' }, { status: 400 });
+  }
 
   try {
     const existing = await query<{ id: string }>("SELECT id FROM users WHERE email = ? LIMIT 1", [p.email!]);

@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppHeader } from '@/components/AppHeader';
 import { Button } from '@/components/Button';
+import { DemoBadge } from '@/components/DemoBadge';
 import { Enter } from '@/components/Enter';
 import { ErrorText } from '@/components/Field';
 import { Mountain } from '@/components/Mountain';
@@ -105,9 +106,12 @@ export default function Landing() {
               {loading ? null : user ? (
                 <>
                   <Button size="lg" label="Open my week" onPress={() => router.push('/home')} />
-                  <Text style={[type.small, styles.fog]}>
-                    Signed in as {user.name}, {user.campus}
-                  </Text>
+                  <View style={styles.signedIn}>
+                    <Text style={[type.small, styles.fog]}>
+                      Signed in as {user.name}, {user.campus}
+                    </Text>
+                    <DemoBadge name={user.name} />
+                  </View>
                 </>
               ) : (
                 <View style={styles.authButtons}>
@@ -296,6 +300,7 @@ const styles = StyleSheet.create({
   heroLarge: { fontSize: 68, lineHeight: 70, letterSpacing: -2 },
   lede: { marginTop: spacing.lg, color: colors.fog, fontSize: 18, lineHeight: 27, maxWidth: 520 },
   actions: { marginTop: spacing.xl, gap: spacing.md },
+  signedIn: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: spacing.sm },
   authButtons: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
 
   sample: {

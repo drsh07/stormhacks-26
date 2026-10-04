@@ -3,11 +3,14 @@ import { ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, Text, View }
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { api } from '@/lib/api';
+import { firstName } from '@/lib/people';
 import { useSession } from '@/lib/session';
 import { borderWidth, colors, radius, shadow, spacing, type } from '@/lib/theme';
 import type { DemoUser } from '@/lib/types';
 
 import { Button } from './Button';
+import { DemoBadge } from './DemoBadge';
+import { ErrorText } from './Field';
 
 type State =
   | { status: 'loading' }
@@ -20,6 +23,8 @@ export function DemoSwitcher() {
   const [open, setOpen] = useState(false);
   const [state, setState] = useState<State>({ status: 'loading' });
   const [switchingId, setSwitchingId] = useState<string | null>(null);
+  const [resetting, setResetting] = useState(false);
+  const [resetNote, setResetNote] = useState<{ ok: boolean; text: string } | null>(null);
 
   const load = useCallback(async () => {
     setState({ status: 'loading' });
@@ -31,7 +36,23 @@ export function DemoSwitcher() {
     }
   }, []);
 
+  /** Puts Demo Alex and Demo Sam back to their starting state so the demo can be run again. */
+  async function resetDemo() {
+    setResetting(true);
+    setResetNote(null);
+    try {
+      await api('/api/demo/reset', { method: 'POST', body: {}, timeoutMs: 60000 });
+      setResetNote({ ok: true, text: 'Demo Alex and Demo Sam are back to their starting state.' });
+      await load();
+    } catch (err) {
+      setResetNote({ ok: false, text: err instanceof Error ? err.message : "Couldn't reset the demo accounts." });
+    } finally {
+      setResetting(false);
+    }
+  }
+
   function show() {
+    setResetNote(null);
     setOpen(true);
     load();
   }
@@ -55,9 +76,10 @@ export function DemoSwitcher() {
         accessibilityLabel="Demo: switch user"
         onPress={show}
         style={({ pressed }) => [styles.chip, pressed ? shadow.none : shadow.hardSm]}>
-        <Text style={type.small} numberOfLines={1}>
-          {user ? `${user.avatar_emoji} ${user.name.split(' ')[0]}` : 'Demo'}
+        <Text style={[type.small, styles.chipText]} numberOfLines={1}>
+          {user ? `${user.avatar_emoji} ${firstName(user.name)}` : 'Demo'}
         </Text>
+        {user && <DemoBadge name={user.name} />}
       </Pressable>
 
       <Modal visible={open} animationType="slide" onRequestClose={() => setOpen(false)}>
@@ -65,6 +87,12 @@ export function DemoSwitcher() {
           <View style={styles.sheetHeader}>
             <Text style={type.title}>Demo: switch user</Text>
             <Button label="Close" variant="secondary" size="sm" onPress={() => setOpen(false)} />
+          </View>
+
+          <View style={styles.resetBox}>
+            <Button label="Reset demo accounts" variant="secondary" size="sm" onPress={resetDemo} loading={resetting} disabled={switchingId !== null} />
+            {resetNote &&
+              (resetNote.ok ? <Text style={[type.small, { color: colors.moss }]}>{resetNote.text}</Text> : <ErrorText>{resetNote.text}</ErrorText>)}
           </View>
 
           {state.status === 'loading' && (
@@ -110,7 +138,10 @@ export function DemoSwitcher() {
                     ]}>
                     <Text style={styles.emoji}>{item.avatar_emoji}</Text>
                     <View style={{ flex: 1 }}>
-                      <Text style={type.bodyStrong}>{item.name}</Text>
+                      <View style={styles.nameRow}>
+                        <Text style={type.bodyStrong}>{item.name}</Text>
+                        <DemoBadge name={item.name} />
+                      </View>
                       <Text style={[type.small, styles.fog]}>{item.campus}</Text>
                     </View>
                     {switchingId === item.id && <ActivityIndicator color={colors.ink} />}
@@ -127,15 +158,20 @@ export function DemoSwitcher() {
 
 const styles = StyleSheet.create({
   chip: {
-    maxWidth: 130,
+    maxWidth: 190,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingHorizontal: spacing.md,
     height: 36,
-    justifyContent: 'center',
     borderWidth,
     borderColor: colors.ink,
     borderRadius: radius.md,
     backgroundColor: colors.paper,
   },
+  chipText: { flexShrink: 1 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: spacing.sm },
+  resetBox: { gap: spacing.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.md },
   sheet: { flex: 1, backgroundColor: colors.chalk },
   sheetHeader: {
     flexDirection: 'row',

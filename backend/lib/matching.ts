@@ -1,4 +1,5 @@
 import { query } from "./db";
+import { isDemoEmail } from "./demo";
 import { toHHMM, toMinutes } from "./time";
 import { DAYS, type Campus, type Day, type FreeBlockKind, type User } from "./types";
 import { interestSimilarities } from "./vector";
@@ -157,8 +158,8 @@ export async function getMatches(me: User, window?: TimeWindow, limit = 20): Pro
 
   // 3. Everything else we need about the candidates, in parallel.
   const [people, similarities, courseRows] = await Promise.all([
-    query<Match["user"] & { interests: string }>(
-      "SELECT id, name, avatar_emoji, program, year, campus, interests FROM users WHERE id IN (?)",
+    query<Match["user"] & { interests: string; email: string }>(
+      "SELECT id, name, avatar_emoji, program, year, campus, interests, email FROM users WHERE id IN (?)",
       [idList],
     ),
     interestSimilarities(me.id, ids),
@@ -177,7 +178,9 @@ export async function getMatches(me: User, window?: TimeWindow, limit = 20): Pro
   }
 
   // 4. Score, explain, rank.
-  const matches: Match[] = people.map(({ interests, ...person }) => {
+  const demoPartnerIds = new Set(isDemoEmail(me.email) ? people.filter((p) => isDemoEmail(p.email)).map((p) => p.id) : []);
+  const matches: Match[] = people.map(({ interests, email: _email, ...person }) => {
+    void _email;
     // Best overlap first: on-campus gaps beat plain free time, then longest, then earliest in the week.
     const overlaps = byUser
       .get(person.id)!
@@ -203,5 +206,11 @@ export async function getMatches(me: User, window?: TimeWindow, limit = 20): Pro
     };
   });
 
-  return matches.sort((a, b) => b.score - a.score).slice(0, limit);
+  return matches
+    .sort(
+      (a, b) =>
+        // For a demo account, the other demo account is pinned to the top. Regular accounts are unaffected.
+        Number(demoPartnerIds.has(b.user.id)) - Number(demoPartnerIds.has(a.user.id)) || b.score - a.score,
+    )
+    .slice(0, limit);
 }

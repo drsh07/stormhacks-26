@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { generateQuest, type QuestContent } from "./ai/quest";
+import { DEMO_QUEST, isDemoEmail, shortName } from "./demo";
 import { execute, query } from "./db";
 import { campusOfSpot } from "./spots";
 import { toMinutes } from "./time";
@@ -32,6 +33,7 @@ interface Person {
   program: string;
   campus: Campus;
   interests: string;
+  email: string;
 }
 
 /**
@@ -133,7 +135,7 @@ export async function createMeetup(input: Omit<MeetupRow, "id" | "status">): Pro
 
 async function getPeople(ids: string[]): Promise<Map<string, Person>> {
   const rows = await query<Person>(
-    "SELECT id, name, avatar_emoji, program, campus, interests FROM users WHERE id IN (?)",
+    "SELECT id, name, avatar_emoji, program, campus, interests, email FROM users WHERE id IN (?)",
     [ids as unknown as string],
   );
   return new Map(rows.map((p) => [p.id, p]));
@@ -151,16 +153,22 @@ export async function createQuestFor(meetup: MeetupRow, reroll = false): Promise
   const b = people.get(meetup.receiver_id);
   if (!a || !b) throw new Error("Meetup participants not found.");
 
-  const { quest } = await generateQuest({
-    nameA: a.name.split(" ")[0],
-    interestsA: a.interests,
-    nameB: b.name.split(" ")[0],
-    interestsB: b.interests,
-    minutesAvailable: toMinutes(meetup.end_time) - toMinutes(meetup.start_time),
-    campus: campusOfSpot(meetup.spot) ?? a.campus,
-    spot: meetup.spot,
-    avoidTitle: reroll ? current?.title : undefined,
-  });
+  // The two demo accounts always get the same fixed, easy quest with each other.
+  const demoPair = isDemoEmail(a.email) && isDemoEmail(b.email);
+  const quest = demoPair
+    ? DEMO_QUEST
+    : (
+        await generateQuest({
+          nameA: shortName(a.name),
+          interestsA: a.interests,
+          nameB: shortName(b.name),
+          interestsB: b.interests,
+          minutesAvailable: toMinutes(meetup.end_time) - toMinutes(meetup.start_time),
+          campus: campusOfSpot(meetup.spot) ?? a.campus,
+          spot: meetup.spot,
+          avoidTitle: reroll ? current?.title : undefined,
+        })
+      ).quest;
 
   if (current) {
     await execute("UPDATE quests SET verdict_comment = ? WHERE id = ?", [REROLLED, current.id]);
@@ -207,7 +215,7 @@ export async function getMeetupDetail(meetupId: string, userId: string): Promise
 
   const isEvent = !!meetup.event_id;
   const [people, quest, used, first, eventRows] = await Promise.all([
-    getPeople([otherId]),
+    getPeople([otherId, userId]),
     isEvent ? Promise.resolve(null) : getCurrentQuest(meetup.id), // event meetups never show a quest
     rerollsUsed(meetup.id),
     isFirstMeetup(meetup),
@@ -254,7 +262,11 @@ export async function getMeetupDetail(meetupId: string, userId: string): Promise
     other: { id: other.id, name: other.name, avatar_emoji: other.avatar_emoji, program: other.program },
     quest: questOut,
     quest_required: first && !isEvent,
-    rerolls_left: quest && quest.status === "pending" ? Math.max(0, MAX_REROLLS - used) : 0,
+    // The demo pair's quest is fixed, so there is nothing to reroll to.
+    rerolls_left:
+      quest && quest.status === "pending" && !(isDemoEmail(other.email) && isDemoEmail(people.get(userId)?.email ?? ""))
+        ? Math.max(0, MAX_REROLLS - used)
+        : 0,
   };
 }
 

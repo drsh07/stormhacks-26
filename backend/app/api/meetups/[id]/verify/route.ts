@@ -3,6 +3,7 @@ import { isSupportedImage } from "@/lib/ai/schedule";
 import { verifyQuestPhoto } from "@/lib/ai/verify";
 import { getCurrentUser } from "@/lib/auth";
 import { execute } from "@/lib/db";
+import { isDemoPair } from "@/lib/demo";
 import { getCurrentQuest, getMeetup, getMeetupDetail } from "@/lib/meetups";
 
 export const maxDuration = 60;
@@ -44,7 +45,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ verified: true, comment: quest.verdict_comment ?? "", detail: await getMeetupDetail(id, user.id) });
     }
 
-    const verdict = await verifyQuestPhoto(quest, imageBase64, mimeType);
+    let verdict = await verifyQuestPhoto(quest, imageBase64, mimeType);
+    // The demo pair's quest must always be completable on stage: the photo is
+    // still checked (and the AI's comment used if it passes), but never rejected.
+    if (!verdict.verified && (await isDemoPair(meetup.requester_id, meetup.receiver_id))) {
+      verdict = { verified: true, comment: "Two people, two peace signs, zero notes. Quest complete." };
+    }
     if (verdict.verified) {
       await execute("UPDATE quests SET status = 'verified', verdict_comment = ? WHERE id = ?", [verdict.comment, quest.id]);
       await execute("UPDATE meetups SET status = 'completed' WHERE id = ?", [id]);

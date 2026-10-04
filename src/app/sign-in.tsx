@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppHeader } from '@/components/AppHeader';
 import { Button } from '@/components/Button';
+import { BackButton } from '@/components/BackButton';
 import { Enter } from '@/components/Enter';
 import { ErrorText, Field } from '@/components/Field';
 import { api, ApiError } from '@/lib/api';
@@ -54,6 +55,7 @@ export default function SignIn() {
       <AppHeader hideSignIn />
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <BackButton fallback="/" />
           <Enter>
             <Text style={type.title}>Sign in</Text>
             <Text style={[type.body, styles.fog]}>Enter the SFU email you signed up with.</Text>

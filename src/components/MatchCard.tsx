@@ -8,6 +8,7 @@ import type { Match } from '@/lib/types';
 
 import { Button } from './Button';
 import { Card } from './Card';
+import { DemoBadge } from './DemoBadge';
 
 const YEAR_LABEL = ['', '1st year', '2nd year', '3rd year', '4th year'];
 /** How far (px) a card must be dragged sideways to count as a swipe. */
@@ -70,7 +71,10 @@ export function MatchCard({ match, onPropose, onSkip }: Props) {
             <Text style={styles.emoji}>{user.avatar_emoji}</Text>
           </View>
           <View style={styles.flex}>
-            <Text style={type.heading}>{user.name}</Text>
+            <View style={styles.nameRow}>
+              <Text style={type.heading}>{user.name}</Text>
+              <DemoBadge name={user.name} />
+            </View>
             {about ? <Text style={[type.small, styles.fog]}>{about}</Text> : null}
           </View>
         </View>
@@ -98,6 +102,7 @@ export function MatchCard({ match, onPropose, onSkip }: Props) {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   fog: { color: colors.fog },
+  nameRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: spacing.sm },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   avatar: {
     width: 52,

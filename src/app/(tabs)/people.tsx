@@ -2,9 +2,7 @@ import { Redirect, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-
 import { SearchX, Users } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AppHeader } from '@/components/AppHeader';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
@@ -13,7 +11,6 @@ import { ErrorText } from '@/components/Field';
 import { SkeletonList } from '@/components/Skeleton';
 import { EventCard } from '@/components/EventCard';
 import { MatchCard } from '@/components/MatchCard';
-import { NavBar } from '@/components/NavBar';
 import { api } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { colors, spacing, type } from '@/lib/theme';
@@ -37,6 +34,7 @@ export default function People() {
   const [skipped, setSkipped] = useState<string[]>([]); // swiped left, hidden until the screen reloads
   const userId = user?.id;
   const filtered = !!(day && start && end);
+  const clearFilter = () => router.setParams({ day: undefined, start: undefined, end: undefined });
 
   const load = useCallback(async () => {
     if (!userId) return;
@@ -70,8 +68,7 @@ export default function People() {
   const visible = state.status === 'ready' ? state.matches.filter((m) => !skipped.includes(m.user.id)) : [];
 
   return (
-    <SafeAreaView style={styles.screen} edges={['top', 'left', 'right']}>
-      <AppHeader />
+    <>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
         <View style={styles.titleBlock}>
           <Text style={type.title}>{filtered ? `Free ${day} ${start} to ${end}` : 'People free when you are'}</Text>
@@ -80,7 +77,7 @@ export default function People() {
               ? 'Everyone who is free in this block, best match first.'
               : 'Ranked by shared interests, time together, and shared courses.'}
           </Text>
-          {filtered && <Button label="See all my matches" variant="secondary" size="sm" onPress={() => router.replace('/people')} />}
+          {filtered && <Button label="See all my matches" variant="secondary" size="sm" onPress={clearFilter} />}
         </View>
 
         {(sessionLoading || state.status === 'loading') && <SkeletonList label="Finding people" />}
@@ -103,7 +100,7 @@ export default function People() {
             }
             action={
               filtered
-                ? { label: 'See all my matches', onPress: () => router.replace('/people') }
+                ? { label: 'See all my matches', onPress: clearFilter }
                 : { label: 'Edit schedule', onPress: () => router.push('/onboarding?step=schedule') }
             }
           />
@@ -143,13 +140,11 @@ export default function People() {
           </>
         )}
       </ScrollView>
-      <NavBar current="people" />
-    </SafeAreaView>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.paper },
   scroll: { backgroundColor: colors.chalk },
   content: {
     padding: spacing.xl,

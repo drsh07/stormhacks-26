@@ -4,12 +4,14 @@ import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { api } from '@/lib/api';
+import { firstName } from '@/lib/people';
 import { borderWidth, colors, iconStroke, radius, spacing, type } from '@/lib/theme';
 import { formatDate } from '@/lib/time';
 import type { EventFeedItem } from '@/lib/types';
 
 import { Button } from './Button';
 import { Card } from './Card';
+import { DemoBadge } from './DemoBadge';
 import { ErrorText } from './Field';
 
 /** One event from the feed, with the people you match who are also free then. */
@@ -63,11 +65,14 @@ export function EventCard({ event }: { event: EventFeedItem }) {
         ) : (
           event.people.map((person) => (
             <View key={person.id} style={styles.person}>
-              <Text style={[type.body, styles.flex]} numberOfLines={1}>
-                {person.avatar_emoji} {person.name}
-              </Text>
+              <View style={styles.personName}>
+                <Text style={type.body} numberOfLines={1}>
+                  {person.avatar_emoji} {person.name}
+                </Text>
+                <DemoBadge name={person.name} />
+              </View>
               <Button
-                label={`Go with ${person.name.split(' ')[0]}`}
+                label={`Go with ${firstName(person.name)}`}
                 size="sm"
                 onPress={() => goWith(person.id)}
                 loading={goingWith === person.id}
@@ -103,4 +108,5 @@ const styles = StyleSheet.create({
     borderTopColor: colors.muted,
   },
   person: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  personName: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
 });

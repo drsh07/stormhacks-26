@@ -1,13 +1,15 @@
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { ArrowLeft } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppHeader } from '@/components/AppHeader';
+import { BackButton } from '@/components/BackButton';
 import { Button } from '@/components/Button';
+import { DemoBadge } from '@/components/DemoBadge';
 import { Card } from '@/components/Card';
 import { api } from '@/lib/api';
+import { firstName } from '@/lib/people';
 import { useSession } from '@/lib/session';
 import { borderWidth, colors, radius, spacing, type } from '@/lib/theme';
 import { formatDuration } from '@/lib/time';
@@ -87,7 +89,7 @@ export default function Propose() {
     <SafeAreaView style={styles.screen} edges={['top', 'left', 'right', 'bottom']}>
       <AppHeader />
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-        <Button label="Back" icon={ArrowLeft} variant="secondary" size="sm" onPress={() => (router.canGoBack() ? router.back() : router.replace('/people'))} />
+        <BackButton fallback="/people" />
 
         {(sessionLoading || state.status === 'loading') && (
           <View style={styles.centered}>
@@ -104,11 +106,14 @@ export default function Propose() {
 
         {state.status === 'ready' && (
           <>
-            <Text style={type.title}>
-              Meet {state.match.user.avatar_emoji} {state.match.user.name.split(' ')[0]}
-            </Text>
+            <View style={styles.nameRow}>
+              <Text style={type.title}>
+                Meet {state.match.user.avatar_emoji} {firstName(state.match.user.name)}
+              </Text>
+              <DemoBadge name={state.match.user.name} />
+            </View>
             <Text style={[type.body, styles.fog]}>
-              Pick a time and a place. {state.match.user.name.split(' ')[0]} gets the invite and can accept or decline.
+              Pick a time and a place. {firstName(state.match.user.name)} gets the invite and can accept or decline.
             </Text>
 
             <Text style={type.heading}>When</Text>
@@ -182,6 +187,7 @@ const styles = StyleSheet.create({
   centered: { alignItems: 'center', paddingVertical: spacing.xxl },
   fog: { color: colors.fog },
   options: { gap: spacing.sm },
+  nameRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: spacing.sm },
   option: {
     borderWidth,
     borderColor: colors.ink,

@@ -1,13 +1,15 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, Clock, MapPin } from 'lucide-react-native';
+import { Clock, MapPin } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppHeader } from '@/components/AppHeader';
 import { Button } from '@/components/Button';
+import { BackButton } from '@/components/BackButton';
 import { Card } from '@/components/Card';
+import { DemoBadge } from '@/components/DemoBadge';
 import { Confetti } from '@/components/Confetti';
 import { ErrorText } from '@/components/Field';
 import { SkeletonList } from '@/components/Skeleton';
@@ -15,6 +17,8 @@ import { QuestCard } from '@/components/QuestCard';
 import { AI_TIMEOUT_MS, api, ApiError } from '@/lib/api';
 import { pickImage } from '@/lib/image';
 import { useReduceMotion } from '@/lib/motion';
+import { goToTab } from '@/lib/nav';
+import { firstName } from '@/lib/people';
 import { useSession } from '@/lib/session';
 import { borderWidth, colors, fonts, iconStroke, radius, spacing, type } from '@/lib/theme';
 import { formatDate, formatDuration } from '@/lib/time';
@@ -159,7 +163,7 @@ export default function MeetupScreen() {
     }
   }
 
-  const first = detail?.other.name.split(' ')[0] ?? '';
+  const first = detail ? firstName(detail.other.name) : '';
   const event = detail?.event ?? null;
 
   return (
@@ -167,7 +171,7 @@ export default function MeetupScreen() {
       <AppHeader />
       {celebrate > 0 && <Confetti key={celebrate} />}
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-        <Button label="All meetups" icon={ArrowLeft} variant="secondary" size="sm" onPress={() => router.replace('/meetups')} />
+        <BackButton fallback="/meetups" />
 
         {!detail && !loadError && <SkeletonList count={2} label="Loading the meetup" />}
 
@@ -183,7 +187,10 @@ export default function MeetupScreen() {
             <View style={styles.who}>
               <Text style={styles.bigEmoji}>{detail.other.avatar_emoji}</Text>
               <View style={styles.flex}>
-                <Text style={type.title}>{detail.other.name}</Text>
+                <View style={styles.nameRow}>
+                  <Text style={type.title}>{detail.other.name}</Text>
+                  <DemoBadge name={detail.other.name} />
+                </View>
                 <View style={styles.metaRow}>
                   <Clock size={16} color={colors.fog} strokeWidth={iconStroke} />
                   <Text style={[type.body, styles.fog, styles.flex]}>
@@ -257,7 +264,7 @@ export default function MeetupScreen() {
               <Card>
                 <Text style={type.heading}>{detail.role === 'receiver' ? 'You declined this one' : `${first} can't make it`}</Text>
                 <Text style={type.body}>No hard feelings. There are other people free when you are.</Text>
-                <Button label="Find someone else" onPress={() => router.replace('/people')} />
+                <Button label="Find someone else" onPress={() => goToTab(router, '/people')} />
               </Card>
             )}
 
@@ -268,7 +275,7 @@ export default function MeetupScreen() {
                 <Text style={type.body}>
                   {first} is in. Find each other at {event.location} when it starts.
                 </Text>
-                <Button label="Back to my meetups" variant="secondary" onPress={() => router.replace('/meetups')} />
+                <Button label="Back to my meetups" variant="secondary" onPress={() => goToTab(router, '/meetups')} />
               </Card>
             )}
 
@@ -330,7 +337,7 @@ export default function MeetupScreen() {
             )}
 
             {/* 4. Completed */}
-            {status === 'completed' && <Celebration detail={detail} onDone={() => router.replace('/meetups')} />}
+            {status === 'completed' && <Celebration detail={detail} onDone={() => goToTab(router, '/meetups')} />}
 
             {actionError ? <ErrorText>{actionError}</ErrorText> : null}
           </>
@@ -344,7 +351,7 @@ export default function MeetupScreen() {
 function Celebration({ detail, onDone }: { detail: MeetupDetail; onDone: () => void }) {
   const scale = useRef(new Animated.Value(0.4)).current;
   const reduce = useReduceMotion();
-  const first = detail.other.name.split(' ')[0];
+  const first = firstName(detail.other.name);
 
   useEffect(() => {
     if (reduce) scale.setValue(1);
@@ -386,6 +393,7 @@ const styles = StyleSheet.create({
   },
   fog: { color: colors.fog },
   who: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
+  nameRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: spacing.sm },
   metaRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, paddingTop: 2 },
   bigEmoji: { fontSize: 48 },
   buttons: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },

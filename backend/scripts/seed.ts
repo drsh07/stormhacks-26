@@ -2,6 +2,7 @@ import "./env";
 import { randomUUID } from "node:crypto";
 import { embedTexts } from "../lib/ai/embed";
 import { getPool, toVectorLiteral } from "../lib/db";
+import { resetDemoAccounts } from "../lib/demo";
 import { computeFreeBlocks } from "../lib/free-blocks";
 import { DAYS, type Campus, type ClassSlot, type Day } from "../lib/types";
 
@@ -240,6 +241,9 @@ async function main() {
         `${date} ${e.start}:00`, `${date} ${e.end}:00`, toVectorLiteral(vectors[STUDENTS.length + i])],
     );
   }
+
+  await resetDemoAccounts();
+  console.log("Demo accounts ready: Demo Alex (demo1@sfu.ca) and Demo Sam (demo2@sfu.ca).");
 
   console.log(`Seeded ${STUDENTS.length} students, ${classCount} classes, ${blockCount} free blocks, ${EVENTS.length} events.`);
   await pool.end();

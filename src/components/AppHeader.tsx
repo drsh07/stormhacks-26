@@ -3,10 +3,12 @@ import { LogOut } from 'lucide-react-native';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { DEMO_MODE } from '@/lib/api';
+import { firstName } from '@/lib/people';
 import { useSession } from '@/lib/session';
 import { borderWidth, colors, fonts, spacing, type } from '@/lib/theme';
 
 import { Button } from './Button';
+import { DemoBadge } from './DemoBadge';
 import { DemoSwitcher } from './DemoSwitcher';
 import { IconButton } from './IconButton';
 
@@ -29,9 +31,12 @@ export function AppHeader({ hideSignIn }: Props) {
           <DemoSwitcher />
         ) : (
           user && (
-            <Text style={type.small} numberOfLines={1}>
-              {user.avatar_emoji} {user.name.split(' ')[0]}
-            </Text>
+            <>
+              <Text style={type.small} numberOfLines={1}>
+                {user.avatar_emoji} {firstName(user.name)}
+              </Text>
+              <DemoBadge name={user.name} />
+            </>
           )
         )}
         {user && <IconButton icon={LogOut} label="Sign out" onPress={signOut} />}

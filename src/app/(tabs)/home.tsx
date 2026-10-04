@@ -2,17 +2,15 @@ import { Redirect, useFocusEffect, useRouter } from 'expo-router';
 import { CalendarPlus, Clock, Pencil } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AppHeader } from '@/components/AppHeader';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
 import { Enter } from '@/components/Enter';
 import { ErrorText } from '@/components/Field';
 import { SkeletonList } from '@/components/Skeleton';
-import { NavBar } from '@/components/NavBar';
 import { api } from '@/lib/api';
+import { firstName } from '@/lib/people';
 import { useSession } from '@/lib/session';
 import { borderWidth, colors, fonts, iconStroke, radius, spacing, type } from '@/lib/theme';
 import { formatDuration, todayInVancouver, toMinutes } from '@/lib/time';
@@ -68,11 +66,10 @@ export default function Home() {
   const hasInterests = !!user && user.interests.trim().length > 0;
 
   return (
-    <SafeAreaView style={styles.screen} edges={['top', 'left', 'right']}>
-      <AppHeader />
+    <>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
         <View style={styles.titleRow}>
-          <Text style={[type.title, styles.flex]}>{user ? `${user.name.split(' ')[0]}'s week` : 'Your week'}</Text>
+          <Text style={[type.title, styles.flex]}>{user ? `${firstName(user.name)}'s week` : 'Your week'}</Text>
           <Button label="Edit schedule" icon={Pencil} variant="secondary" size="sm" onPress={() => router.push('/onboarding?step=schedule')} />
         </View>
 
@@ -141,8 +138,7 @@ export default function Home() {
           </>
         )}
       </ScrollView>
-      <NavBar current="home" />
-    </SafeAreaView>
+    </>
   );
 }
 
@@ -186,7 +182,6 @@ function FreeItem({ block }: { block: FreeBlock }) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.paper },
   flex: { flex: 1 },
   scroll: { backgroundColor: colors.chalk },
   content: {

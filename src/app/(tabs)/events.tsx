@@ -2,9 +2,7 @@ import { Redirect, useFocusEffect, useRouter } from 'expo-router';
 import { CalendarX, Plus } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AppHeader } from '@/components/AppHeader';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
@@ -12,7 +10,6 @@ import { Enter } from '@/components/Enter';
 import { ErrorText } from '@/components/Field';
 import { SkeletonList } from '@/components/Skeleton';
 import { EventCard } from '@/components/EventCard';
-import { NavBar } from '@/components/NavBar';
 import { api } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { colors, spacing, type } from '@/lib/theme';
@@ -50,8 +47,7 @@ export default function Events() {
   if (!sessionLoading && !user) return <Redirect href="/" />;
 
   return (
-    <SafeAreaView style={styles.screen} edges={['top', 'left', 'right']}>
-      <AppHeader />
+    <>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
         <View style={styles.titleBlock}>
           <Text style={type.title}>Events in your free time</Text>
@@ -84,13 +80,11 @@ export default function Events() {
             </Enter>
           ))}
       </ScrollView>
-      <NavBar current="events" />
-    </SafeAreaView>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.paper },
   scroll: { backgroundColor: colors.chalk },
   content: {
     padding: spacing.xl,
