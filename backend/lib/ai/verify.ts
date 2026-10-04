@@ -1,5 +1,4 @@
-import { getGemini } from "./client";
-import { AI_CONFIG } from "./config";
+import { generateText } from "./generate";
 import { parseModelJson } from "./json";
 import type { QuestContent } from "./quest";
 
@@ -20,12 +19,9 @@ const FALLBACK: Verdict = {
  * The photo is only passed through to Gemini; it is never stored.
  */
 export async function verifyQuestPhoto(quest: QuestContent, imageBase64: string, mimeType: string): Promise<Verdict> {
-  const ai = getGemini();
-  if (!ai) return FALLBACK;
   try {
-    const res = await ai.models.generateContent({
-      model: AI_CONFIG.flashModel,
-      contents: [
+    const res = await generateText(
+      [
         {
           role: "user",
           parts: [
@@ -46,8 +42,8 @@ If you reject it, the comment should say kindly what the photo needs to show.`,
           ],
         },
       ],
-      config: { responseMimeType: "application/json", temperature: 0.7 },
-    });
+      { responseMimeType: "application/json", temperature: 0.7 },
+    );
     const parsed = parseModelJson(res.text);
     if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
       const r = parsed as Record<string, unknown>;

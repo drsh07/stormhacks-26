@@ -41,6 +41,39 @@ export function Chips<T extends string | number>({ label, options, value, onChan
   );
 }
 
+interface MultiProps<T extends string> {
+  label?: string;
+  options: readonly T[];
+  values: T[];
+  onChange: (values: T[]) => void;
+  compact?: boolean;
+}
+
+/** Pick any number of options. Tapping a chip turns it on or off. */
+export function MultiChips<T extends string>({ label, options, values, onChange, compact }: MultiProps<T>) {
+  return (
+    <View style={styles.wrap}>
+      {label ? <Text style={type.small}>{label}</Text> : null}
+      <View style={styles.row}>
+        {options.map((option) => {
+          const selected = values.includes(option);
+          return (
+            <Pressable
+              key={option}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: selected }}
+              onPress={() => onChange(selected ? values.filter((v) => v !== option) : [...values, option])}
+              hitSlop={4}
+              style={[styles.chip, compact && styles.compact, selected && styles.selected]}>
+              <Text style={[styles.text, compact && styles.compactText, selected && { color: colors.white }]}>{option}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   wrap: { gap: spacing.xs },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },

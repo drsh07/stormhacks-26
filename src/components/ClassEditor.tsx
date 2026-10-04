@@ -2,32 +2,72 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { TIME_PATTERN, toMinutes } from '@/lib/time';
 import { colors, spacing, type } from '@/lib/theme';
-import { CAMPUSES, DAYS, type Campus, type ClassSlot } from '@/lib/types';
+import { CAMPUSES, DAYS, type Campus, type ClassSlot, type Day } from '@/lib/types';
 
 import { Button } from './Button';
 import { Card } from './Card';
-import { Chips } from './Chips';
+import { Chips, MultiChips } from './Chips';
 import { Field } from './Field';
 
-/** A class being edited. `key` is only for React; it never goes to the server. */
-export interface ClassRow extends ClassSlot {
+/**
+ * A class being edited. One row covers every day the class meets at the same
+ * time (a Tue/Thu lecture is one row with two days). `key` is only for React.
+ */
+export interface ClassRow {
   key: string;
+  course_code: string;
+  days: Day[];
+  start_time: string;
+  end_time: string;
+  campus: Campus;
 }
 
 let nextKey = 0;
+const byWeekOrder = (a: Day, b: Day) => DAYS.indexOf(a) - DAYS.indexOf(b);
+
+/** Server classes (one per day) -> editor rows (one per class time, with all its days). */
 export function toRows(classes: ClassSlot[]): ClassRow[] {
-  return classes.map((c) => ({ ...c, key: `row-${nextKey++}` }));
+  const rows = new Map<string, ClassRow>();
+  for (const c of classes) {
+    const id = `${c.course_code}|${c.start_time}|${c.end_time}|${c.campus}`;
+    const row = rows.get(id);
+    if (row) {
+      if (!row.days.includes(c.day)) row.days = [...row.days, c.day].sort(byWeekOrder);
+    } else {
+      rows.set(id, {
+        key: `row-${nextKey++}`,
+        course_code: c.course_code,
+        days: [c.day],
+        start_time: c.start_time,
+        end_time: c.end_time,
+        campus: c.campus,
+      });
+    }
+  }
+  return [...rows.values()];
 }
+
 export function blankRow(campus: Campus): ClassRow {
-  return { key: `row-${nextKey++}`, course_code: '', day: 'Mon', start_time: '', end_time: '', campus };
+  return { key: `row-${nextKey++}`, course_code: '', days: [], start_time: '', end_time: '', campus };
 }
+
+/** Editor rows -> server classes: one entry per day the class meets. */
 export function toClasses(rows: ClassRow[]): ClassSlot[] {
-  return rows.map(({ key: _key, ...slot }) => ({ ...slot, course_code: slot.course_code.trim() }));
+  return rows.flatMap((row) =>
+    row.days.map((day) => ({
+      course_code: row.course_code.trim(),
+      day,
+      start_time: row.start_time.trim(),
+      end_time: row.end_time.trim(),
+      campus: row.campus,
+    })),
+  );
 }
 
 /** Returns what is wrong with a row, or null if it is ready to save. */
 export function rowError(row: ClassRow): string | null {
   if (!row.course_code.trim()) return 'Add a course code, like CMPT 225.';
+  if (row.days.length === 0) return 'Pick at least one day.';
   if (!TIME_PATTERN.test(row.start_time.trim()) || !TIME_PATTERN.test(row.end_time.trim())) {
     return 'Use 24-hour times, like 10:30 and 14:20.';
   }
@@ -45,7 +85,7 @@ interface Props {
 
 /** The editable class list: fix what the AI got wrong, or type classes by hand. */
 export function ClassEditor({ rows, onChange, defaultCampus, showErrors }: Props) {
-  function update(key: string, patch: Partial<ClassSlot>) {
+  function update(key: string, patch: Partial<Omit<ClassRow, 'key'>>) {
     onChange(rows.map((r) => (r.key === key ? { ...r, ...patch } : r)));
   }
 
@@ -73,7 +113,13 @@ export function ClassEditor({ rows, onChange, defaultCampus, showErrors }: Props
               autoCorrect={false}
               maxLength={20}
             />
-            <Chips label="Day" compact options={DAYS} value={row.day} onChange={(day) => update(row.key, { day })} />
+            <MultiChips
+              label="Days (pick every day it meets at this time)"
+              compact
+              options={DAYS}
+              values={row.days}
+              onChange={(days) => update(row.key, { days: [...days].sort(byWeekOrder) })}
+            />
             <View style={styles.times}>
               <View style={styles.time}>
                 <Field

@@ -9,6 +9,7 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { SessionProvider } from '@/lib/session';
@@ -36,7 +37,14 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <SessionProvider>
         <StatusBar style="dark" />
-        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.chalk } }} />
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: colors.chalk },
+            // In a browser, pages should just open. The sliding card is a phone convention.
+            animation: Platform.OS === 'web' ? 'none' : 'default',
+          }}
+        />
       </SessionProvider>
     </SafeAreaProvider>
   );

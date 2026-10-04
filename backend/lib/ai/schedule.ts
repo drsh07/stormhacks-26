@@ -1,7 +1,6 @@
 import { cleanClasses } from "../schedule";
 import type { Campus, ClassSlot } from "../types";
-import { getGemini } from "./client";
-import { AI_CONFIG } from "./config";
+import { AiUnavailableError, generateText } from "./generate";
 import { parseModelJson } from "./json";
 
 export type ExtractResult =
@@ -40,25 +39,17 @@ export async function extractSchedule(
   mimeType: string,
   defaultCampus: Campus,
 ): Promise<ExtractResult> {
-  const ai = getGemini();
-  if (!ai) return { ok: false, reason: "no_key" };
-
   let text: string | undefined;
   try {
-    const res = await ai.models.generateContent({
-      model: AI_CONFIG.flashModel,
-      contents: [
-        {
-          role: "user",
-          parts: [{ inlineData: { mimeType, data: imageBase64 } }, { text: prompt(defaultCampus) }],
-        },
-      ],
-      config: { responseMimeType: "application/json", temperature: 0 },
-    });
+    const res = await generateText(
+      [{ role: "user", parts: [{ inlineData: { mimeType, data: imageBase64 } }, { text: prompt(defaultCampus) }] }],
+      { responseMimeType: "application/json", temperature: 0 },
+    );
     text = res.text;
   } catch (err) {
     console.error("[ai/schedule] Gemini call failed:", err);
-    return { ok: false, reason: "ai_error" };
+    const noKey = err instanceof AiUnavailableError && err.message.includes("not set");
+    return { ok: false, reason: noKey ? "no_key" : "ai_error" };
   }
 
   const parsed = parseModelJson(text);

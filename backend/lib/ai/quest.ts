@@ -1,6 +1,5 @@
 import type { Campus } from "../types";
-import { getGemini } from "./client";
-import { AI_CONFIG } from "./config";
+import { generateText } from "./generate";
 import { parseModelJson } from "./json";
 
 export interface QuestContent {
@@ -120,20 +119,13 @@ function cannedQuest(minutesAvailable: number, avoidTitle?: string): QuestConten
 
 /** Always returns a quest: from Gemini when it works, from the canned list when it does not. */
 export async function generateQuest(input: QuestInput): Promise<{ quest: QuestContent; source: "gemini" | "canned" }> {
-  const ai = getGemini();
-  if (ai) {
-    try {
-      const res = await ai.models.generateContent({
-        model: AI_CONFIG.flashModel,
-        contents: prompt(input),
-        config: { responseMimeType: "application/json", temperature: 1.1 },
-      });
-      const quest = validate(parseModelJson(res.text), input.minutesAvailable);
-      if (quest) return { quest, source: "gemini" };
-      console.error("[ai/quest] unusable model output, using a canned quest:", res.text?.slice(0, 300));
-    } catch (err) {
-      console.error("[ai/quest] Gemini call failed, using a canned quest:", err);
-    }
+  try {
+    const res = await generateText(prompt(input), { responseMimeType: "application/json", temperature: 1.1 });
+    const quest = validate(parseModelJson(res.text), input.minutesAvailable);
+    if (quest) return { quest, source: "gemini" };
+    console.error("[ai/quest] unusable model output, using a canned quest:", res.text?.slice(0, 300));
+  } catch (err) {
+    console.error("[ai/quest] Gemini call failed, using a canned quest:", err);
   }
   return { quest: cannedQuest(input.minutesAvailable, input.avoidTitle), source: "canned" };
 }

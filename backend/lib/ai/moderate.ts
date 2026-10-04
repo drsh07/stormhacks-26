@@ -1,5 +1,4 @@
-import { getGemini } from "./client";
-import { AI_CONFIG } from "./config";
+import { generateText } from "./generate";
 import { parseModelJson } from "./json";
 
 export interface Moderation {
@@ -16,12 +15,10 @@ const BLOCKED_WORDS = /\b(kill|rape|nazi|cocaine|meth|heroin|fentanyl|escort|nud
  * blocking every post, so the demo never dead-ends.
  */
 export async function moderateEvent(title: string, description: string, location: string): Promise<Moderation> {
-  const ai = getGemini();
-  if (ai) {
+  {
     try {
-      const res = await ai.models.generateContent({
-        model: AI_CONFIG.flashModel,
-        contents: `You moderate event posts for SideQuest, an app where university students find things to do between classes.
+      const res = await generateText(
+        `You moderate event posts for SideQuest, an app where university students find things to do between classes.
 
 Event title: ${title}
 Description: ${description}
@@ -33,8 +30,8 @@ Block the post if it contains or promotes any of: hate or harassment, sexual con
 
 Return ONLY JSON, no prose, no code fences:
 {"ok": true or false, "reason": "if not ok, one short friendly sentence telling the poster what to change; if ok, an empty string"}`,
-        config: { responseMimeType: "application/json", temperature: 0 },
-      });
+        { responseMimeType: "application/json", temperature: 0 },
+      );
       const parsed = parseModelJson(res.text);
       if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
         const r = parsed as Record<string, unknown>;
